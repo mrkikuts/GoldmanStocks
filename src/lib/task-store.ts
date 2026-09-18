@@ -36,4 +36,10 @@ export const taskActions = {
     state = [...state, { ...task, id: `t${Date.now()}` }];
     emit();
   },
+  /** Swap in whole tasks by id (e.g. an approved plan) — fields they don't have are cleared. */
+  replace(next: Task[]) {
+    const byId = new Map(next.map((t) => [t.id, t]));
+    state = state.map((t) => byId.get(t.id) ?? t);
+    emit();
+  },
 };

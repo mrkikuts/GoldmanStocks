@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, CloudRain, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Check, Cloud, CloudRain, Plus, Sparkles, Sun, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -23,15 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { taskActions, useTasks } from "@/lib/task-store";
-import {
-  projects,
-  weather,
-  weekDates,
-  weekDays,
-  workers,
-  type Task,
-} from "@/lib/rootline-data";
+import { formatDate, useWeekPlan } from "@/hooks/use-week-plan";
+import { taskActions } from "@/lib/task-store";
+import { projects, weekDays, workers, type Task } from "@/lib/rootline-data";
 
 export const Route = createFileRoute("/schedule")({
   head: () => ({
@@ -55,6 +49,7 @@ export const Route = createFileRoute("/schedule")({
 const HOURS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
 const ROW = 56;
 const START = 7;
+const weatherIcon = { rain: CloudRain, cloud: Cloud, sun: Sun } as const;
 const KINDS: Task["kind"][] = [
   "Watering",
   "Clipping",
@@ -65,15 +60,54 @@ const KINDS: Task["kind"][] = [
 ];
 
 function Schedule() {
-  const tasks = useTasks();
+  const week = useWeekPlan();
+  const { weekDates, strip, weather } = week;
+  // tasks as the plan stands: stored tasks with the live weather rules applied
+  const tasks = week.adjusted;
   const [view, setView] = useState<"day" | "week">("day");
-  const [day, setDay] = useState(0);
+  const [day, setDay] = useState(week.today);
   const [active, setActive] = useState<string | "all">("all");
-  const [editing, setEditing] = useState<Task | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   const crew = active === "all" ? workers : workers.filter((w) => w.id === active);
   const dayTasks = tasks.filter((t) => t.day === day);
+  const editing = tasks.find((t) => t.id === editingId) ?? null;
+  const isApproved = (d: number) => tasks.some((t) => t.day === d && t.approvedAt);
+  const days = view === "day" ? [day] : weekDays.map((_, i) => i);
+  const DayIcon = weatherIcon[strip[day]?.icon ?? "cloud"];
+
+  function approve() {
+    const approvedAt = new Date().toISOString();
+    taskActions.replace(
+      tasks.filter((t) => days.includes(t.day)).map((t) => ({ ...t, approvedAt })),
+    );
+    toast.success(
+      view === "day"
+        ? `${weekDays[day]} plan approved`
+        : "Week plan approved",
+    );
+  }
+
+  function replan() {
+    const open = days.filter((d) => !isApproved(d));
+    let changed = 0;
+    for (const d of open) {
+      const planned = week.propose(d).tasks.filter((t) => t.day === d);
+      changed += planned.filter((t) => {
+        const before = tasks.find((o) => o.id === t.id);
+        return before?.workerId !== t.workerId || before.start !== t.start;
+      }).length;
+      taskActions.replace(planned);
+    }
+    toast.success(
+      open.length === 0
+        ? "Already approved — nothing to re-plan"
+        : changed === 0
+          ? "The plan is already optimal"
+          : `Re-planned: ${changed} ${changed === 1 ? "job" : "jobs"} moved or reassigned`,
+    );
+  }
 
   return (
     <AppShell
@@ -84,15 +118,10 @@ function Schedule() {
           <Button variant="outline" onClick={() => setCreating(true)}>
             <Plus className="size-4" /> Add task
           </Button>
-          <Button
-            onClick={() =>
-              toast.success(
-                view === "day"
-                  ? `${weekDays[day]} plan approved and sent to the worker app`
-                  : "Week plan approved and published to the worker app",
-              )
-            }
-          >
+          <Button variant="outline" onClick={replan}>
+            <Sparkles className="size-4" /> Plan with AI
+          </Button>
+          <Button onClick={approve} disabled={days.every(isApproved)}>
             <Check className="size-4" /> Approve {view === "day" ? "day" : "week"}
           </Button>
         </div>
@@ -137,11 +166,26 @@ function Schedule() {
                 }`}
               >
                 <span className="font-medium">{d}</span>{" "}
-                <span className="text-xs text-muted-foreground">{weekDates[i]}</span>
+                <span className="text-xs text-muted-foreground">
+                  {formatDate(weekDates[i] ?? "")}
+                </span>
+                {isApproved(i) ? (
+                  <Check className="ml-1 inline size-3.5 text-status-healthy" />
+                ) : null}
               </button>
             ))}
             <span className="ml-auto flex items-center gap-1.5 text-sm text-muted-foreground">
-              <CloudRain className="size-4" /> {weather[day]?.temp}°C · {weather[day]?.note}
+              {weather.isPending ? (
+                "Loading forecast…"
+              ) : weather.isError ? (
+                "Weather unavailable — no weather changes applied"
+              ) : (
+                <>
+                  <DayIcon className="size-4" />
+                  {strip[day]?.temp === null ? "No forecast" : `${strip[day]?.temp}°C`} ·{" "}
+                  {strip[day]?.note}
+                </>
+              )}
             </span>
           </div>
 
@@ -185,7 +229,7 @@ function Schedule() {
                       {dayTasks
                         .filter((t) => t.workerId === w.id)
                         .map((t) => (
-                          <TaskBlock key={t.id} task={t} onClick={() => setEditing(t)} />
+                          <TaskBlock key={t.id} task={t} onClick={() => setEditingId(t.id)} />
                         ))}
                     </div>
                   ))}
@@ -207,8 +251,15 @@ function Schedule() {
                 <div />
                 {weekDays.map((d, i) => (
                   <div key={d} className="border-l px-3 py-2">
-                    <p className="text-sm font-medium">{d}</p>
-                    <p className="text-xs text-muted-foreground">{weekDates[i]}</p>
+                    <p className="text-sm font-medium">
+                      {d}
+                      {isApproved(i) ? (
+                        <Check className="ml-1 inline size-3.5 text-status-healthy" />
+                      ) : null}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(weekDates[i] ?? "")} · {strip[i]?.temp ?? "—"}°
+                    </p>
                   </div>
                 ))}
               </div>
@@ -226,7 +277,7 @@ function Schedule() {
                           t.day === dayIndex && (active === "all" || t.workerId === active),
                       )
                       .map((t) => (
-                        <TaskBlock key={t.id} task={t} onClick={() => setEditing(t)} />
+                        <TaskBlock key={t.id} task={t} onClick={() => setEditingId(t.id)} />
                       ))}
                   </div>
                 ))}
@@ -239,7 +290,7 @@ function Schedule() {
       <TaskDialog
         task={editing}
         open={Boolean(editing)}
-        onClose={() => setEditing(null)}
+        onClose={() => setEditingId(null)}
       />
       <NewTaskDialog open={creating} day={day} onClose={() => setCreating(false)} />
     </AppShell>
