@@ -36,13 +36,13 @@ import {
 export const Route = createFileRoute("/schedule")({
   head: () => ({
     meta: [
-      { title: "Crew schedule — Rootline" },
+      { title: "Crew schedule — Goldman Stocks" },
       {
         name: "description",
         content:
           "Review and edit the AI-generated day plan for every worker, then approve it for the worker app.",
       },
-      { property: "og:title", content: "Crew schedule — Rootline" },
+      { property: "og:title", content: "Crew schedule — Goldman Stocks" },
       {
         property: "og:description",
         content: "Weekly and daily crew calendars you can edit before approving.",

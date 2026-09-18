@@ -29,13 +29,13 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Rootline — plant-aware crew planning" },
+      { title: "Goldman Stocks — plant-aware crew planning" },
       {
         name: "description",
         content:
-          "Rootline plans every gardener's day around each plant's care schedule and the weather, with proof of work for every client.",
+          "Goldman Stocks plans every gardener's day around each plant's care schedule and the weather, with proof of work for every client.",
       },
-      { property: "og:title", content: "Rootline — plant-aware crew planning" },
+      { property: "og:title", content: "Goldman Stocks — plant-aware crew planning" },
       {
         property: "og:description",
         content:
@@ -71,7 +71,7 @@ function Dashboard() {
         </Button>
       }
     >
-      <div className="grid gap-4 lg:grid-cols-4">
+      <div className="grid gap-5 lg:grid-cols-4">
         <Stat icon={Leaf} label="Plants needing care today" value="23" hint="6 overdue" />
         <Stat icon={CloudRain} label="Tasks skipped by weather" value="18" hint="9 mm rain overnight" />
         <Stat icon={Clock} label="Planned hours today" value="26.5" hint="across 4 workers" />
@@ -91,7 +91,7 @@ function Dashboard() {
           {weather.map((w) => {
             const Icon = weatherIcon[w.icon as keyof typeof weatherIcon];
             return (
-              <div key={w.day} className="rounded-xl border bg-muted/40 p-3">
+              <div key={w.day} className="rounded-lg border bg-secondary/55 p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">{w.day}</span>
                   <Icon className="size-4 text-muted-foreground" />
@@ -119,7 +119,7 @@ function Dashboard() {
             {workers.map((w) => {
               const own = todayTasks.filter((t) => t.workerId === w.id);
               return (
-                <div key={w.id} className="rounded-xl border p-3">
+                <div key={w.id} className="rounded-lg border p-4 transition-colors hover:bg-secondary/45">
                   <div className="flex items-center justify-between">
                     <p className="font-medium">{w.name}</p>
                     <span className="text-xs text-muted-foreground">
@@ -162,7 +162,7 @@ function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-3">
               {critical.map((p) => (
-                <div key={p.id} className="rounded-lg border p-3">
+                <div key={p.id} className="rounded-lg border p-3 transition-colors hover:bg-secondary/45">
                   <p className="text-sm font-medium">{p.common}</p>
                   <p className="text-xs text-muted-foreground">
                     {p.client} · {p.site}
@@ -241,9 +241,11 @@ function Stat({
       <CardContent className="pt-6">
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">{label}</p>
-          <Icon className="size-4 text-muted-foreground" />
+          <span className="flex size-8 items-center justify-center rounded-lg bg-accent/12 text-accent-foreground">
+            <Icon className="size-4" />
+          </span>
         </div>
-        <p className="mt-2 text-3xl font-semibold">{value}</p>
+        <p className="mt-3 text-3xl font-bold text-primary">{value}</p>
         <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
       </CardContent>
     </Card>

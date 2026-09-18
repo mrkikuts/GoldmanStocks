@@ -20,8 +20,6 @@ import { projectTasks } from "@/lib/api/tasks";
 import { weekDays } from "@/lib/rootline-data";
 
 export const Route = createFileRoute("/projects/$projectId")({
-  // Everything this page needs, fetched server-side so it is server-rendered and dehydrated
-  // into the HTML rather than fetched again after hydration.
   loader: async ({ params }) => {
     const project = await getProject({ data: params.projectId });
     if (!project) throw notFound();
@@ -36,12 +34,12 @@ export const Route = createFileRoute("/projects/$projectId")({
     const name = loaderData ? loaderData.project.name : "Project";
     return {
       meta: [
-        { title: `${name} — Rootline` },
+        { title: `${name} — Goldman Stocks` },
         {
           name: "description",
           content: `Site map, plant register and assigned crew for ${name}.`,
         },
-        { property: "og:title", content: `${name} — Rootline` },
+        { property: "og:title", content: `${name} — Goldman Stocks` },
         {
           property: "og:description",
           content: `Site map, plant register and assigned crew for ${name}.`,

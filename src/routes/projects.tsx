@@ -13,13 +13,13 @@ import { listWorkers } from "@/lib/api/workers";
 export const Route = createFileRoute("/projects")({
   head: () => ({
     meta: [
-      { title: "Projects — Rootline" },
+      { title: "Projects — Goldman Stocks" },
       {
         name: "description",
         content:
           "Every maintenance project with its plants, site map, assigned crew and contract value.",
       },
-      { property: "og:title", content: "Projects — Rootline" },
+      { property: "og:title", content: "Projects — Goldman Stocks" },
       {
         property: "og:description",
         content:
@@ -41,8 +41,7 @@ export const Route = createFileRoute("/projects")({
 function Projects() {
   const { projects, allPlants, workers } = Route.useLoaderData();
 
-  // Counts and crew names are derived here rather than per-project queries, which would mean
-  // calling hooks inside the render loop below.
+  // Derived here rather than per-project queries, which would mean hooks in the render loop.
   const plantCountByProject = useMemo(() => {
     const counts = new Map<string, number>();
     for (const plant of allPlants) {

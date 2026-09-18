@@ -33,13 +33,16 @@ import { type Plant } from "@/lib/rootline-data";
 export const Route = createFileRoute("/plants")({
   head: () => ({
     meta: [
-      { title: "Plant & area register — Rootline" },
+      { title: "Plant & area register — Goldman Stocks" },
       {
         name: "description",
         content:
           "Every tree, hedge, lawn and flower bed by project, with ID, species, care schedule and history.",
       },
-      { property: "og:title", content: "Plant & area register — Rootline" },
+      {
+        property: "og:title",
+        content: "Plant & area register — Goldman Stocks",
+      },
       {
         property: "og:description",
         content:
@@ -74,8 +77,8 @@ function Plants() {
 
   const { plants, projects, workers } = Route.useLoaderData();
 
-  // Crew names per project, derived from the worker list rather than a query per project —
-  // a hook inside the render loop below would break the rules of hooks.
+  // Crew names per project, derived from the worker list — a query inside the render loop
+  // below would break the rules of hooks.
   const workerNameById = useMemo(
     () => new Map(workers.map((w) => [w.id, w.name])),
     [workers],

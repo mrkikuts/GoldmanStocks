@@ -11,10 +11,16 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ClientsRouteImport } from './routes/clients'
+import { Route as MobileRouteImport } from './routes/mobile'
 import { Route as PlantsRouteImport } from './routes/plants'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as WorkersRouteImport } from './routes/workers'
+import { Route as MobileIndexRouteImport } from './routes/mobile.index'
+import { Route as MobileLocationsRouteImport } from './routes/mobile.locations'
+import { Route as MobileNewPlantRouteImport } from './routes/mobile.new-plant'
+import { Route as MobilePlantsRouteImport } from './routes/mobile.plants'
+import { Route as MobileSettingsRouteImport } from './routes/mobile.settings'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -25,6 +31,11 @@ const IndexRoute = IndexRouteImport.update({
 const ClientsRoute = ClientsRouteImport.update({
   id: '/clients',
   path: '/clients',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MobileRoute = MobileRouteImport.update({
+  id: '/mobile',
+  path: '/mobile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlantsRoute = PlantsRouteImport.update({
@@ -47,6 +58,31 @@ const WorkersRoute = WorkersRouteImport.update({
   path: '/workers',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MobileIndexRoute = MobileIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => MobileRoute,
+} as any)
+const MobileLocationsRoute = MobileLocationsRouteImport.update({
+  id: '/locations',
+  path: '/locations',
+  getParentRoute: () => MobileRoute,
+} as any)
+const MobileNewPlantRoute = MobileNewPlantRouteImport.update({
+  id: '/new-plant',
+  path: '/new-plant',
+  getParentRoute: () => MobileRoute,
+} as any)
+const MobilePlantsRoute = MobilePlantsRouteImport.update({
+  id: '/plants',
+  path: '/plants',
+  getParentRoute: () => MobileRoute,
+} as any)
+const MobileSettingsRoute = MobileSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => MobileRoute,
+} as any)
 const ProjectsProjectIdRoute = ProjectsProjectIdRouteImport.update({
   id: '/$projectId',
   path: '/$projectId',
@@ -56,11 +92,17 @@ const ProjectsProjectIdRoute = ProjectsProjectIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/clients': typeof ClientsRoute
+  '/mobile': typeof MobileRouteWithChildren
   '/plants': typeof PlantsRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/schedule': typeof ScheduleRoute
   '/workers': typeof WorkersRoute
+  '/mobile/locations': typeof MobileLocationsRoute
+  '/mobile/new-plant': typeof MobileNewPlantRoute
+  '/mobile/plants': typeof MobilePlantsRoute
+  '/mobile/settings': typeof MobileSettingsRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/mobile/': typeof MobileIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -69,28 +111,45 @@ export interface FileRoutesByTo {
   '/projects': typeof ProjectsRouteWithChildren
   '/schedule': typeof ScheduleRoute
   '/workers': typeof WorkersRoute
+  '/mobile/locations': typeof MobileLocationsRoute
+  '/mobile/new-plant': typeof MobileNewPlantRoute
+  '/mobile/plants': typeof MobilePlantsRoute
+  '/mobile/settings': typeof MobileSettingsRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/mobile': typeof MobileIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/clients': typeof ClientsRoute
+  '/mobile': typeof MobileRouteWithChildren
   '/plants': typeof PlantsRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/schedule': typeof ScheduleRoute
   '/workers': typeof WorkersRoute
+  '/mobile/locations': typeof MobileLocationsRoute
+  '/mobile/new-plant': typeof MobileNewPlantRoute
+  '/mobile/plants': typeof MobilePlantsRoute
+  '/mobile/settings': typeof MobileSettingsRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/mobile/': typeof MobileIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/clients'
+    | '/mobile'
     | '/plants'
     | '/projects'
     | '/schedule'
     | '/workers'
+    | '/mobile/locations'
+    | '/mobile/new-plant'
+    | '/mobile/plants'
+    | '/mobile/settings'
     | '/projects/$projectId'
+    | '/mobile/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -99,21 +158,33 @@ export interface FileRouteTypes {
     | '/projects'
     | '/schedule'
     | '/workers'
+    | '/mobile/locations'
+    | '/mobile/new-plant'
+    | '/mobile/plants'
+    | '/mobile/settings'
     | '/projects/$projectId'
+    | '/mobile'
   id:
     | '__root__'
     | '/'
     | '/clients'
+    | '/mobile'
     | '/plants'
     | '/projects'
     | '/schedule'
     | '/workers'
+    | '/mobile/locations'
+    | '/mobile/new-plant'
+    | '/mobile/plants'
+    | '/mobile/settings'
     | '/projects/$projectId'
+    | '/mobile/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ClientsRoute: typeof ClientsRoute
+  MobileRoute: typeof MobileRouteWithChildren
   PlantsRoute: typeof PlantsRoute
   ProjectsRoute: typeof ProjectsRouteWithChildren
   ScheduleRoute: typeof ScheduleRoute
@@ -134,6 +205,13 @@ declare module '@tanstack/react-router' {
       path: '/clients'
       fullPath: '/clients'
       preLoaderRoute: typeof ClientsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mobile': {
+      id: '/mobile'
+      path: '/mobile'
+      fullPath: '/mobile'
+      preLoaderRoute: typeof MobileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/plants': {
@@ -164,6 +242,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mobile/': {
+      id: '/mobile/'
+      path: '/'
+      fullPath: '/mobile/'
+      preLoaderRoute: typeof MobileIndexRouteImport
+      parentRoute: typeof MobileRoute
+    }
+    '/mobile/locations': {
+      id: '/mobile/locations'
+      path: '/locations'
+      fullPath: '/mobile/locations'
+      preLoaderRoute: typeof MobileLocationsRouteImport
+      parentRoute: typeof MobileRoute
+    }
+    '/mobile/new-plant': {
+      id: '/mobile/new-plant'
+      path: '/new-plant'
+      fullPath: '/mobile/new-plant'
+      preLoaderRoute: typeof MobileNewPlantRouteImport
+      parentRoute: typeof MobileRoute
+    }
+    '/mobile/plants': {
+      id: '/mobile/plants'
+      path: '/plants'
+      fullPath: '/mobile/plants'
+      preLoaderRoute: typeof MobilePlantsRouteImport
+      parentRoute: typeof MobileRoute
+    }
+    '/mobile/settings': {
+      id: '/mobile/settings'
+      path: '/settings'
+      fullPath: '/mobile/settings'
+      preLoaderRoute: typeof MobileSettingsRouteImport
+      parentRoute: typeof MobileRoute
+    }
     '/projects/$projectId': {
       id: '/projects/$projectId'
       path: '/$projectId'
@@ -173,6 +286,25 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface MobileRouteChildren {
+  MobileLocationsRoute: typeof MobileLocationsRoute
+  MobileNewPlantRoute: typeof MobileNewPlantRoute
+  MobilePlantsRoute: typeof MobilePlantsRoute
+  MobileSettingsRoute: typeof MobileSettingsRoute
+  MobileIndexRoute: typeof MobileIndexRoute
+}
+
+const MobileRouteChildren: MobileRouteChildren = {
+  MobileLocationsRoute: MobileLocationsRoute,
+  MobileNewPlantRoute: MobileNewPlantRoute,
+  MobilePlantsRoute: MobilePlantsRoute,
+  MobileSettingsRoute: MobileSettingsRoute,
+  MobileIndexRoute: MobileIndexRoute,
+}
+
+const MobileRouteWithChildren =
+  MobileRoute._addFileChildren(MobileRouteChildren)
 
 interface ProjectsRouteChildren {
   ProjectsProjectIdRoute: typeof ProjectsProjectIdRoute
@@ -189,6 +321,7 @@ const ProjectsRouteWithChildren = ProjectsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ClientsRoute: ClientsRoute,
+  MobileRoute: MobileRouteWithChildren,
   PlantsRoute: PlantsRoute,
   ProjectsRoute: ProjectsRouteWithChildren,
   ScheduleRoute: ScheduleRoute,

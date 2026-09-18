@@ -13,13 +13,13 @@ import { weekDays } from "@/lib/rootline-data";
 export const Route = createFileRoute("/workers")({
   head: () => ({
     meta: [
-      { title: "Workers — Rootline" },
+      { title: "Workers — Goldman Stocks" },
       {
         name: "description",
         content:
           "Crew overview: planned hours per worker this week, languages and worker app invites.",
       },
-      { property: "og:title", content: "Workers — Rootline" },
+      { property: "og:title", content: "Workers — Goldman Stocks" },
       {
         property: "og:description",
         content: "Crew overview with weekly workload and worker app access.",

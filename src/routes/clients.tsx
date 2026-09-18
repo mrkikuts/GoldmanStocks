@@ -12,13 +12,13 @@ import { listClients } from "@/lib/api/clients";
 export const Route = createFileRoute("/clients")({
   head: () => ({
     meta: [
-      { title: "Clients — Rootline" },
+      { title: "Clients — Goldman Stocks" },
       {
         name: "description",
         content:
           "Client list with sites, plants under care, hours spent this month and contract renewals.",
       },
-      { property: "og:title", content: "Clients — Rootline" },
+      { property: "og:title", content: "Clients — Goldman Stocks" },
       {
         property: "og:description",
         content:
