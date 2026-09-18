@@ -1,7 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod/v4";
 
 import type { Offer, OfferStatus } from "@/lib/types";
@@ -9,7 +8,6 @@ import type { Offer, OfferStatus } from "@/lib/types";
 import {
   assertNotRefused,
   FALLBACK_BETA,
-  getAnthropic,
   MODEL,
   toLlmError,
 } from "./llm.server";
@@ -107,10 +105,6 @@ export async function draftOffersWith(
     ];
   });
 }
-
-export const draftOffers = createServerFn({ method: "POST" })
-  .validator(DraftOffersInput)
-  .handler(({ data }) => draftOffersWith(getAnthropic(), data));
 
 // ─── Persistence (the `offers` table) — wired to track A's client at integration ─
 

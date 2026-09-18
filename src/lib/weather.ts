@@ -5,7 +5,8 @@ import type { DayWeather, Project, Task, WeatherIcon } from "./types";
  * `time` is "YYYY-MM-DDTHH:MM", `date` is "YYYY-MM-DD".
  */
 export type SiteForecast = {
-  hourly: { time: string; precipMm: number; tempC: number }[];
+  /** rain per hour — hours without rain may be left out */
+  hourly: { time: string; precipMm: number }[];
   daily: {
     date: string;
     precipMm: number;
@@ -217,7 +218,6 @@ export type OpenMeteoSite = {
   hourly: {
     time: string[];
     precipitation: (number | null)[];
-    temperature_2m: (number | null)[];
   };
   daily: {
     time: string[];
@@ -237,7 +237,7 @@ export function openMeteoUrl(sites: LatLng[]): string {
   const params = new URLSearchParams({
     latitude: sites.map((s) => s.lat).join(","),
     longitude: sites.map((s) => s.lng).join(","),
-    hourly: "precipitation,temperature_2m",
+    hourly: "precipitation",
     daily: "precipitation_sum,temperature_2m_max,weather_code",
     past_days: "7",
     forecast_days: "10",
@@ -266,8 +266,7 @@ export function splitOpenMeteo(json: unknown): OpenMeteoSite[] {
 export function toSiteForecast(site: OpenMeteoSite): SiteForecast {
   const hourly = site.hourly.time.flatMap((time, i) => {
     const precipMm = site.hourly.precipitation[i];
-    const tempC = site.hourly.temperature_2m[i];
-    return precipMm == null || tempC == null ? [] : [{ time, precipMm, tempC }];
+    return precipMm == null ? [] : [{ time, precipMm }];
   });
   const daily = site.daily.time.flatMap((date, i) => {
     const precipMm = site.daily.precipitation_sum[i];
@@ -278,6 +277,24 @@ export function toSiteForecast(site: OpenMeteoSite): SiteForecast {
       : [{ date, precipMm, tempMaxC, weatherCode }];
   });
   return { hourly, daily };
+}
+
+/**
+ * Keep only what the rules and the growth prediction read: days from `from` to `to`
+ * (inclusive) and, within them, the hours that had rain. Rain sums are unchanged.
+ */
+export function trimForecast(
+  forecast: SiteForecast,
+  from: string,
+  to: string,
+): SiteForecast {
+  const inRange = (date: string) => date >= from && date <= to;
+  return {
+    hourly: forecast.hourly.filter(
+      (h) => h.precipMm > 0 && inRange(h.time.slice(0, 10)),
+    ),
+    daily: forecast.daily.filter((d) => inRange(d.date)),
+  };
 }
 
 /** WMO weather code → the dashboard's three icons. */

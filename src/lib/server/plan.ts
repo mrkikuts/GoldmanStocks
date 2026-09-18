@@ -1,11 +1,9 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod/v4";
 
 import {
   assertNotRefused,
   FALLBACK_BETA,
-  getAnthropic,
   MODEL,
   toLlmError,
 } from "./llm.server";
@@ -70,7 +68,3 @@ export async function explainPlanWith(
     throw toLlmError(error);
   }
 }
-
-export const explainPlan = createServerFn({ method: "POST" })
-  .validator(ExplainPlanInput)
-  .handler(({ data }) => explainPlanWith(getAnthropic(), data));

@@ -275,7 +275,7 @@ describe("the mock week", () => {
 
   test("proposeDay: rain skips watering, and the skipped task is not routed", () => {
     const wet: SiteForecast = {
-      hourly: [{ time: "2026-09-20T23:00", precipMm: 9, tempC: 10 }],
+      hourly: [{ time: "2026-09-20T23:00", precipMm: 9 }],
       daily: WEEK.map((date) => ({
         date,
         precipMm: 0,

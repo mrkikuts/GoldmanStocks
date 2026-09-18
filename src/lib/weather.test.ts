@@ -29,7 +29,6 @@ function forecast(
     hourly: Object.entries(rain).map(([time, precipMm]) => ({
       time,
       precipMm,
-      tempC: 10,
     })),
     daily: WEEK.map((date) => ({
       date,
@@ -267,7 +266,6 @@ describe("Open-Meteo mapping", () => {
     hourly: {
       time: ["2026-09-20T22:00", "2026-09-20T23:00", "2026-09-21T00:00"],
       precipitation: [4.5, null, 4.6],
-      temperature_2m: [11, 10.5, null],
     },
     daily: {
       time: ["2026-09-21", "2026-09-22"],
@@ -292,7 +290,8 @@ describe("Open-Meteo mapping", () => {
   test("gaps in the data are dropped, not guessed", () => {
     const f = toSiteForecast(site);
     expect(f.hourly).toEqual([
-      { time: "2026-09-20T22:00", precipMm: 4.5, tempC: 11 },
+      { time: "2026-09-20T22:00", precipMm: 4.5 },
+      { time: "2026-09-21T00:00", precipMm: 4.6 },
     ]);
     expect(f.daily.map((d) => d.date)).toEqual(["2026-09-21"]);
   });

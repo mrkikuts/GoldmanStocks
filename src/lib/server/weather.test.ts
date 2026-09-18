@@ -3,7 +3,12 @@ import { describe, expect, test } from "bun:test";
 
 import type { OpenMeteoSite } from "@/lib/weather";
 
-import { loadForecasts, memoryWeatherCache, WEATHER_TTL_MS } from "./weather";
+import {
+  loadForecasts,
+  memoryWeatherCache,
+  trimToPlanWindow,
+  WEATHER_TTL_MS,
+} from "./weather";
 
 const NOW = new Date("2026-09-21T06:00:00Z");
 const sites = [
@@ -18,7 +23,6 @@ function payload(tempMax: number): OpenMeteoSite {
     hourly: {
       time: ["2026-09-21T00:00"],
       precipitation: [1],
-      temperature_2m: [9],
     },
     daily: {
       time: ["2026-09-21"],
@@ -125,5 +129,56 @@ describe("loadForecasts", () => {
     ).rejects.toThrow(
       "Weather unavailable: Open-Meteo returned 1 sites, expected 2",
     );
+  });
+});
+
+describe("trimToPlanWindow", () => {
+  test("keeps the plan week (from Sunday evening) and the next 7 days, rain hours only", () => {
+    const now = new Date("2026-09-18T09:00:00Z"); // Friday; plan week 14–18 Sep
+    const hours = [
+      "2026-09-12T20:00",
+      "2026-09-13T20:00",
+      "2026-09-15T03:00",
+      "2026-09-15T04:00",
+      "2026-09-26T10:00",
+    ];
+    const trimmed = trimToPlanWindow(
+      {
+        forecasts: {
+          p1: {
+            hourly: hours.map((time, i) => ({
+              time,
+              precipMm: i === 3 ? 0 : 2,
+            })),
+            daily: [
+              "2026-09-12",
+              "2026-09-13",
+              "2026-09-18",
+              "2026-09-25",
+              "2026-09-26",
+            ].map((date) => ({
+              date,
+              precipMm: 0,
+              tempMaxC: 15,
+              weatherCode: 3,
+            })),
+          },
+        },
+        fetchedAt: now.toISOString(),
+        stale: false,
+        missing: [],
+      },
+      now,
+    );
+    const f = trimmed.forecasts["p1"]!;
+    expect(f.hourly.map((h) => h.time)).toEqual([
+      "2026-09-13T20:00",
+      "2026-09-15T03:00",
+    ]);
+    expect(f.daily.map((d) => d.date)).toEqual([
+      "2026-09-13",
+      "2026-09-18",
+      "2026-09-25",
+    ]);
   });
 });

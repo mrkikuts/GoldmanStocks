@@ -1,12 +1,14 @@
-import { createServerFn } from "@tanstack/react-start";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { projects } from "@/lib/rootline-data";
 import {
+  addDays,
+  localDate,
   openMeteoUrl,
+  planWeekDates,
   siteKey,
   splitOpenMeteo,
   toSiteForecast,
+  trimForecast,
   type OpenMeteoSite,
   type SiteForecast,
 } from "@/lib/weather";
@@ -155,20 +157,29 @@ export async function loadForecasts(
   };
 }
 
-async function fetchJson(url: string): Promise<unknown> {
+/**
+ * Cut the forecasts down to what the screens use — the plan week from the Sunday
+ * evening before it, and the next 7 days for the growth prediction — so the
+ * response stays small.
+ */
+export function trimToPlanWindow(week: WeekWeather, now: Date): WeekWeather {
+  const dates = planWeekDates(now);
+  const from = addDays(dates[0]!, -1);
+  const nextWeek = addDays(localDate(now), 7);
+  const to = dates[4]! > nextWeek ? dates[4]! : nextWeek;
+  const forecasts: Record<string, SiteForecast> = {};
+  for (const [id, f] of Object.entries(week.forecasts)) {
+    forecasts[id] = trimForecast(f, from, to);
+  }
+  return { ...week, forecasts };
+}
+
+/** Fetch JSON from Open-Meteo with a 10 s timeout. */
+export async function fetchOpenMeteoJson(url: string): Promise<unknown> {
   const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   if (!response.ok) throw new Error(`Open-Meteo HTTP ${response.status}`);
   return response.json();
 }
 
-const cache = memoryWeatherCache();
-
-/** This week's forecast for every project site. */
-export const getWeekWeather = createServerFn({ method: "GET" }).handler(() =>
-  loadForecasts(
-    projects.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng })),
-    cache,
-    fetchJson,
-    new Date(),
-  ),
-);
+/** The server's forecast cache — in-memory until track A's Supabase client lands (A1). */
+export const defaultWeatherCache = memoryWeatherCache();
