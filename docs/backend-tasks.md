@@ -25,12 +25,12 @@ should never need to wait on each other or resolve a merge conflict.
 
 ## Step 0 — Shared setup (both people, together, ~20 min)
 
-- [ ] **`.gitignore` first.** The repo has none, and it syncs to GitHub + Lovable, so the first
+- [x] **`.gitignore` first.** The repo has none, and it syncs to GitHub + Lovable, so the first
       commit after you create `.env` would publish your keys. Create it with at least:
       `.env*`, `node_modules`, `dist`, `.output`, `.nitro`.
-- [ ] Create the Supabase project. Both of you save the project URL, the anon key and the
+- [x] Create the Supabase project. Both of you save the project URL, the anon key and the
       service-role key.
-- [ ] Create `.env`. **Only public-safe values get the `VITE_` prefix** — `vite.config.ts` injects
+- [x] Create `.env`. **Only public-safe values get the `VITE_` prefix** — `vite.config.ts` injects
       every `VITE_*` var into the client bundle:
       ```
       VITE_SUPABASE_URL=...
@@ -38,28 +38,63 @@ should never need to wait on each other or resolve a merge conflict.
       SUPABASE_SERVICE_ROLE_KEY=...   # server only — no VITE_ prefix
       ANTHROPIC_API_KEY=...           # server only — no VITE_ prefix
       ```
-- [ ] `bun add @supabase/supabase-js` (heads up: `bunfig.toml` blocks package versions published in
-      the last 24h).
-- [ ] **Agree the schema and commit it** as one migration (`supabase/migrations/0001_init.sql`) plus
-      one shared types file. Tables:
-      `companies`, `clients`, `projects`, `plants`, `workers`, `tasks`, `care_events`,
-      `task_photos`, `weather_cache`, `offers`.
-      Mirror the field names already in `src/lib/rootline-data.ts` — `PlantStatus`
-      (`healthy | attention | critical`), `Task.kind`, `Task.status` (`planned | done | skipped`),
-      `Task.weatherNote`, and the plant `x` / `y` percentages that `PlantMap` draws with. Add
-      `projects.lat` / `projects.lng` — track B needs real coordinates for the weather lookup.
+- [x] `bun add @supabase/supabase-js @supabase/ssr` (heads up: `bunfig.toml` blocks package versions
+      published in the last 24h). `@supabase/ssr` is what keeps the session in cookies so server
+      functions can see the logged-in user. Note: nothing was installed on this machine — if `bun`
+      is missing for you too, `brew install bun`, then `bun install`.
+- [x] **Schema — already live, applied straight to the project.** It was created in the dashboard
+      rather than through `supabase/migrations/`, so there is no init migration in the repo (an
+      init file that didn't match the live database would be worse than none — applying it would
+      clobber the real schema).
+
+      **The contract is `src/lib/supabase/types.ts`**, generated from the live schema; see
+      `supabase/README.md` for how to regenerate it (`supabase gen types` needs Docker, so it's
+      done by reading PostgREST's OpenAPI spec instead). **Read the types file before writing
+      queries — the columns are not what an earlier draft of this doc described.**
+
+      What Track B needs to know:
+      - `weather_cache` is a **generic cache**: `key` (text, PK), `fetched_at`, `payload` (jsonb).
+        Not one row per site per day — you choose the key format and what goes in the payload.
+      - `projects.lat` / `lng` exist, are **NOT NULL**, and are seeded with real coordinates for
+        all five sites. Open-Meteo can be called straight off them.
+      - `tasks` has `day` (0 = Monday), `start` (hour) and `duration` (hours) — the same shape as
+        the `Task` type in `rootline-data.ts`. There is **no** `scheduled_date` and **no**
+        `route_order`; derive the date from `day` off the demo week start (21 Sep 2026), and keep
+        route order in your own structure or ask for a column.
+      - `offers` carries `subject`, `body` and `due_date` alongside `what` / `value`, so B4's
+        drafted messages have somewhere to live. Seeded with placeholder drafts.
+      - `task_photos` is ready for B5: `task_id`, `storage_path`, `taken_at`, `lat`, `lng`.
+      - `care_events` uses `date` (not `event_date`) and has no photo flag.
+      - There is **no denormalised `client` column** on `projects`, `plants` or `tasks`. The A4
+        mappers join through `clients` to fill the `client` field the UI expects — reuse
+        `clientNameByProject()` in `src/lib/server/lookups.ts` rather than re-deriving it.
+      - **RLS is on and it denied everyone.** No policy admitted the `authenticated` role, so even
+        a correctly signed-in user read zero rows from every table. Fixed additively by
+        `supabase/migrations/0002_authenticated_access.sql` (run it in the dashboard SQL editor —
+        API keys can't execute DDL). Existing policies are untouched; `using (true)` still needs
+        tightening to per-company scoping before real data goes near it.
+      - Query through `getAuthedClient()` in `src/lib/server/session.ts`, not `getServerClient()`
+        directly — it signs in and memoises one authenticated client per request.
 - [ ] Push it. Both pull. Then split up.
 
 ---
 
 ## Track A — Data, CRUD & auth
 
-**Owns:** `supabase/`, `src/lib/supabase.ts`, `src/lib/server/clients.ts`, `.../projects.ts`,
+**Owns:** `supabase/`, `src/lib/supabase/`, `src/lib/server/clients.ts`, `.../projects.ts`,
 `.../plants.ts`, `.../workers.ts`, `.../tasks.ts`, and the routes `plants.tsx`, `clients.tsx`,
 `projects.tsx`, `projects.$projectId.tsx`, `workers.tsx`.
 
-- [ ] **A1 — Supabase clients.** `src/lib/supabase.ts`: a browser client (anon key) and a
-      server-only client (service-role key). The server one must never be imported from a component.
+- [x] **A1 — Supabase clients.** Done, as a folder rather than one file. **Track B imports from
+      here**, so use these exact paths:
+      - `@/lib/supabase/client` → `supabase`, the browser client (anon key, RLS applies).
+      - `@/lib/supabase/server` → `getServerClient()` for anything acting on behalf of a user
+        (request-scoped, reads the session from cookies, RLS applies) and `getAdminClient()` for
+        trusted server work only (service-role, **bypasses RLS**). Call these per request — never
+        hoist the result to module scope, or one request's session leaks into another's response.
+      - `@/lib/supabase/types` → `Database`. A2 overwrites this file with generated types.
+      `server.ts` starts with `import "@tanstack/react-start/server-only"`, so importing it from a
+      component fails the build instead of leaking the service-role key into the bundle.
 - [ ] **A2 — Apply the migration** from step 0 to the project; confirm the tables exist in the
       Supabase dashboard.
 - [ ] **A3 — Seed script.** Import the arrays from `src/lib/rootline-data.ts` (`clients`,
