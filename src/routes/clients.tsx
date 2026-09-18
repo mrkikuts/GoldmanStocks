@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { clients } from "@/lib/rootline-data";
+import { listClients } from "@/lib/api/clients";
 
 export const Route = createFileRoute("/clients")({
   head: () => ({
@@ -21,10 +21,12 @@ export const Route = createFileRoute("/clients")({
       { property: "og:title", content: "Clients — Rootline" },
       {
         property: "og:description",
-        content: "See which clients are profitable and which eat hours, site by site.",
+        content:
+          "See which clients are profitable and which eat hours, site by site.",
       },
     ],
   }),
+  loader: () => listClients(),
   component: Clients,
 });
 
@@ -35,7 +37,10 @@ const healthStyles = {
 } as const;
 
 function Clients() {
-  const maxHours = Math.max(...clients.map((c) => c.hoursThisMonth));
+  const clients = Route.useLoaderData();
+  const maxHours = clients.length
+    ? Math.max(...clients.map((c) => c.hoursThisMonth))
+    : 1;
   const revenue = clients.reduce((s, c) => s + c.monthlyValue, 0);
 
   return (
@@ -43,7 +48,11 @@ function Clients() {
       title="Clients"
       subtitle={`${clients.length} maintenance contracts · €${revenue.toLocaleString("en-GB")} per month`}
       actions={
-        <Button onClick={() => toast("Client onboarding starts with mapping the first site")}>
+        <Button
+          onClick={() =>
+            toast("Client onboarding starts with mapping the first site")
+          }
+        >
           <Plus className="size-4" /> New client
         </Button>
       }
@@ -71,19 +80,27 @@ function Clients() {
 
               <div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Hours this month</span>
+                  <span className="text-muted-foreground">
+                    Hours this month
+                  </span>
                   <span className="font-medium">{c.hoursThisMonth} h</span>
                 </div>
-                <Progress value={(c.hoursThisMonth / maxHours) * 100} className="mt-2" />
+                <Progress
+                  value={(c.hoursThisMonth / maxHours) * 100}
+                  className="mt-2"
+                />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  €{Math.round(c.monthlyValue / c.hoursThisMonth)} per hour worked
+                  €{Math.round(c.monthlyValue / c.hoursThisMonth)} per hour
+                  worked
                 </p>
               </div>
 
               <Button
                 variant="secondary"
                 className="w-full"
-                onClick={() => toast.success(`Monthly photo report for ${c.name} generated`)}
+                onClick={() =>
+                  toast.success(`Monthly photo report for ${c.name} generated`)
+                }
               >
                 <FileText className="size-4" /> Monthly report with photos
               </Button>

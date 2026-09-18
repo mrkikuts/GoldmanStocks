@@ -14,19 +14,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  getProject,
-  projectPlants,
-  projectTasks,
-  projectWorkers,
-  weekDays,
-} from "@/lib/rootline-data";
+import { projectPlants } from "@/lib/api/plants";
+import { getProject, projectWorkers } from "@/lib/api/projects";
+import { projectTasks } from "@/lib/api/tasks";
+import { weekDays } from "@/lib/rootline-data";
 
 export const Route = createFileRoute("/projects/$projectId")({
-  loader: ({ params }) => {
-    const project = getProject(params.projectId);
+  // Everything this page needs, fetched server-side so it is server-rendered and dehydrated
+  // into the HTML rather than fetched again after hydration.
+  loader: async ({ params }) => {
+    const project = await getProject({ data: params.projectId });
     if (!project) throw notFound();
-    return { project };
+    const [plants, crew, tasks] = await Promise.all([
+      projectPlants({ data: params.projectId }),
+      projectWorkers({ data: params.projectId }),
+      projectTasks({ data: params.projectId }),
+    ]);
+    return { project, plants, crew, tasks };
   },
   head: ({ loaderData }) => {
     const name = loaderData ? loaderData.project.name : "Project";
@@ -60,10 +64,7 @@ function ProjectNotFound() {
 }
 
 function ProjectDetail() {
-  const { project } = Route.useLoaderData();
-  const plants = projectPlants(project.id);
-  const crew = projectWorkers(project.id);
-  const tasks = projectTasks(project.id);
+  const { project, plants, crew, tasks } = Route.useLoaderData();
 
   return (
     <AppShell
@@ -105,7 +106,9 @@ function ProjectDetail() {
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-2 text-sm font-medium">
                       {w.name}
-                      {w.isLead ? <Badge variant="secondary">Lead</Badge> : null}
+                      {w.isLead ? (
+                        <Badge variant="secondary">Lead</Badge>
+                      ) : null}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {w.role} · speaks {w.language}
@@ -128,19 +131,29 @@ function ProjectDetail() {
             </CardHeader>
             <CardContent className="space-y-2">
               {tasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No visits planned this week.</p>
+                <p className="text-sm text-muted-foreground">
+                  No visits planned this week.
+                </p>
               ) : (
                 tasks.map((t) => {
                   const worker = crew.find((w) => w.id === t.workerId);
                   return (
-                    <div key={t.id} className="flex items-center justify-between gap-2 text-sm">
+                    <div
+                      key={t.id}
+                      className="flex items-center justify-between gap-2 text-sm"
+                    >
                       <div className="min-w-0">
                         <p className="truncate font-medium">{t.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {weekDays[t.day]} {t.start}:00 · {worker?.name ?? "Unassigned"}
+                          {weekDays[t.day]} {t.start}:00 ·{" "}
+                          {worker?.name ?? "Unassigned"}
                         </p>
                       </div>
-                      <Badge variant={t.status === "skipped" ? "outline" : "secondary"}>
+                      <Badge
+                        variant={
+                          t.status === "skipped" ? "outline" : "secondary"
+                        }
+                      >
                         {t.status}
                       </Badge>
                     </div>
@@ -154,7 +167,9 @@ function ProjectDetail() {
             <CardContent className="grid grid-cols-2 gap-3 pt-6 text-sm">
               <div>
                 <p className="text-xs text-muted-foreground">Monthly value</p>
-                <p className="font-medium">€{project.monthlyValue.toLocaleString("en-US")}</p>
+                <p className="font-medium">
+                  €{project.monthlyValue.toLocaleString("en-US")}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Visits / month</p>
@@ -175,7 +190,9 @@ function ProjectDetail() {
 
       <Card className="mt-4 shadow-card">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Plants & areas in this project</CardTitle>
+          <CardTitle className="text-base">
+            Plants & areas in this project
+          </CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto p-0 pb-4">
           <Table>
@@ -192,10 +209,14 @@ function ProjectDetail() {
             <TableBody>
               {plants.map((p) => (
                 <TableRow key={p.id}>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{p.id}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {p.id}
+                  </TableCell>
                   <TableCell>
                     <p className="font-medium">{p.common}</p>
-                    <p className="text-xs italic text-muted-foreground">{p.species}</p>
+                    <p className="text-xs italic text-muted-foreground">
+                      {p.species}
+                    </p>
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary">{p.kind}</Badge>
@@ -206,7 +227,9 @@ function ProjectDetail() {
                   </TableCell>
                   <TableCell>
                     <p className="text-sm">{p.nextTask}</p>
-                    <p className="text-xs text-muted-foreground">{p.nextCare}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {p.nextCare}
+                    </p>
                   </TableCell>
                 </TableRow>
               ))}

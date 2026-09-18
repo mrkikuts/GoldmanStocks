@@ -6,7 +6,9 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { tasks, workers, weekDays } from "@/lib/rootline-data";
+import { listTasks } from "@/lib/api/tasks";
+import { listWorkers } from "@/lib/api/workers";
+import { weekDays } from "@/lib/rootline-data";
 
 export const Route = createFileRoute("/workers")({
   head: () => ({
@@ -24,16 +26,26 @@ export const Route = createFileRoute("/workers")({
       },
     ],
   }),
+  loader: async () => {
+    const [workers, tasks] = await Promise.all([listWorkers(), listTasks()]);
+    return { workers, tasks };
+  },
   component: Workers,
 });
 
 function Workers() {
+  const { workers, tasks } = Route.useLoaderData();
+
   return (
     <AppShell
       title="Workers"
       subtitle="Crew of 4 · worker app in Estonian, Latvian and English"
       actions={
-        <Button onClick={() => toast.success("Invite link copied — send it to the new worker")}>
+        <Button
+          onClick={() =>
+            toast.success("Invite link copied — send it to the new worker")
+          }
+        >
           <UserPlus className="size-4" /> Invite worker
         </Button>
       }
@@ -69,15 +81,21 @@ function Workers() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-3 gap-3 text-sm">
                   <div>
-                    <p className="text-xs text-muted-foreground">Planned hours</p>
+                    <p className="text-xs text-muted-foreground">
+                      Planned hours
+                    </p>
                     <p className="font-medium">{hours} h</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Tasks this week</p>
+                    <p className="text-xs text-muted-foreground">
+                      Tasks this week
+                    </p>
                     <p className="font-medium">{own.length}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Proven with photo</p>
+                    <p className="text-xs text-muted-foreground">
+                      Proven with photo
+                    </p>
                     <p className="font-medium">{done}</p>
                   </div>
                 </div>
@@ -98,7 +116,9 @@ function Workers() {
                             }}
                           />
                         </div>
-                        <p className="mt-1 text-[11px] text-muted-foreground">{d}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {d}
+                        </p>
                       </div>
                     );
                   })}
@@ -107,7 +127,9 @@ function Workers() {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => toast(`Today's list sent to ${w.name}'s phone`)}
+                  onClick={() =>
+                    toast(`Today's list sent to ${w.name}'s phone`)
+                  }
                 >
                   <Smartphone className="size-4" /> Send today's list
                 </Button>

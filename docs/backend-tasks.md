@@ -67,13 +67,13 @@ should never need to wait on each other or resolve a merge conflict.
       - `care_events` uses `date` (not `event_date`) and has no photo flag.
       - There is **no denormalised `client` column** on `projects`, `plants` or `tasks`. The A4
         mappers join through `clients` to fill the `client` field the UI expects — reuse
-        `clientNameByProject()` in `src/lib/server/lookups.ts` rather than re-deriving it.
+        `clientNameByProject()` in `src/lib/api/lookups.ts` rather than re-deriving it.
       - **RLS is on and it denied everyone.** No policy admitted the `authenticated` role, so even
         a correctly signed-in user read zero rows from every table. Fixed additively by
         `supabase/migrations/0002_authenticated_access.sql` (run it in the dashboard SQL editor —
         API keys can't execute DDL). Existing policies are untouched; `using (true)` still needs
         tightening to per-company scoping before real data goes near it.
-      - Query through `getAuthedClient()` in `src/lib/server/session.ts`, not `getServerClient()`
+      - Query through `getAuthedClient()` in `src/lib/api/session.ts`, not `getServerClient()`
         directly — it signs in and memoises one authenticated client per request.
 - [ ] Push it. Both pull. Then split up.
 
@@ -81,7 +81,7 @@ should never need to wait on each other or resolve a merge conflict.
 
 ## Track A — Data, CRUD & auth
 
-**Owns:** `supabase/`, `src/lib/supabase/`, `src/lib/server/clients.ts`, `.../projects.ts`,
+**Owns:** `supabase/`, `src/lib/supabase/`, `src/lib/api/clients.ts`, `.../projects.ts`,
 `.../plants.ts`, `.../workers.ts`, `.../tasks.ts`, and the routes `plants.tsx`, `clients.tsx`,
 `projects.tsx`, `projects.$projectId.tsx`, `workers.tsx`.
 
@@ -94,29 +94,48 @@ should never need to wait on each other or resolve a merge conflict.
         hoist the result to module scope, or one request's session leaks into another's response.
       - `@/lib/supabase/types` → `Database`. A2 overwrites this file with generated types.
       `server.ts` starts with `import "@tanstack/react-start/server-only"`, so importing it from a
-      component fails the build instead of leaking the service-role key into the bundle.
-- [ ] **A2 — Apply the migration** from step 0 to the project; confirm the tables exist in the
-      Supabase dashboard.
-- [ ] **A3 — Seed script.** Import the arrays from `src/lib/rootline-data.ts` (`clients`,
-      `projects`, `plants`, `workers`, `tasks`) and insert them as-is. Make it re-runnable
-      (truncate + insert) so you can reset the demo.
-- [ ] **A4 — Read + write server functions** with `createServerFn`, one file per entity. Mirror the
-      helpers the UI already uses so the swap is mechanical: `getProject`, `projectPlants`,
-      `projectTasks`, `projectWorkers` (all in `rootline-data.ts:633-664`). Then port the three
-      mutations in `src/lib/task-store.ts` (`update`, `remove`, `add`) to real DB writes.
-- [ ] **A5 — Auth.** Supabase Auth with a `boss` / `worker` role on the worker record. Put the
-      session in `src/routes/__root.tsx` (the `QueryClientProvider` is already wired there at
-      line 134) and redirect unauthenticated users. Keep it simple: email+password is fine for
-      the demo.
-- [ ] **A6 — Swap your routes to real data.** `useQuery` against A4, drop the `@/lib/rootline-data`
-      imports from the five routes you own. `@tanstack/react-query` is already installed and
-      configured — nothing to set up.
+      component fails the build instead of leaking the service-role key into the bundle. For that
+      reason, never import it at module scope from a file that exports a server function — import
+      it inside the handler, as `src/lib/api/session.ts` does. In practice you want
+      `getAuthedClient()` from there rather than `getServerClient()` directly.
+- [x] **A2 — Schema live.** Tables confirmed present and typed into `src/lib/supabase/types.ts`.
+      RLS needed `supabase/migrations/0002_authenticated_access.sql` — until it ran, every
+      signed-in user read zero rows.
+- [x] **A3 — Seed script.** `bun run seed` (`scripts/seed.ts`). Wipes and reloads from
+      `src/lib/rootline-data.ts`: 1 company, 4 workers, 5 clients, 5 projects, 15 plants,
+      12 tasks, 120 care events, 4 offers. Also creates the demo boss account and links it to
+      worker `w1`. Re-run any time to reset the demo.
+- [x] **A4 — Server functions** in `src/lib/api/`, one file per entity, mirroring the old helpers:
+      `listClients`, `listWorkers`, `listPlants`, `listProjects`, `getProject`, `projectPlants`,
+      `projectTasks`, `projectWorkers`, plus `updateTask` / `addTask` / `removeTask`.
+      They return the **existing camelCase types** from `rootline-data.ts` — `mappers.ts` converts
+      snake_case rows and formats dates back to `"12 Sep"` / `"Today"`, which is why `PlantMap`,
+      `PlantCalendar` and `plant-care.ts` needed no changes at all.
+      `src/lib/task-store.ts` is untouched — `schedule.tsx` still drives it. Swapping that over is
+      an Integration step, and it is yours to do.
+- [x] **A5 — Session.** No login screen: `getAuthedClient()` signs in as the seeded demo boss on
+      the first query of each request and memoises one authenticated client per request. The
+      password lives in `process.env` and never reaches the browser bundle. Replace with a real
+      login later — nothing downstream changes.
+- [x] **A6 — Routes on live data.** `clients`, `workers`, `plants`, `projects` and
+      `projects/$projectId` all fetch in their `loader`. The only surviving `rootline-data`
+      imports are the `Plant` type and the `weekDays` constant. Verified end to end: changing a
+      row in Postgres changes what the page renders.
 
 ## Track B — Weather, planner, LLM & photo proof
 
 **Owns:** `src/lib/weather.ts`, `src/lib/planner.ts`, `src/lib/outreach.ts`,
-`src/lib/server/weather.ts`, `.../plan.ts`, `.../outreach.ts`, `.../photos.ts`, and the routes
+`src/lib/api/weather.ts`, `.../plan.ts`, `.../outreach.ts`, `.../photos.ts`, and the routes
 `schedule.tsx`, `index.tsx`.
+
+> **Put server functions in `src/lib/api/`, not `src/lib/server/`.** TanStack Start treats a
+> `server/` directory as server-only and replaces those modules on the client with a stub that
+> throws, so any `createServerFn` you export from there cannot be imported by a route. It still
+> renders fine in SSR, which makes it easy to miss — Track A hit this and moved the folder.
+
+> **Fetch in route `loader`s rather than `useQuery`.** Loader data is server-rendered and
+> dehydrated into the HTML; a `useQuery` in a component fetches again after hydration, so the
+> demo shows a loading flash on first paint. Track A's five routes are all loaders now.
 
 Write B2 and B3 as **pure functions over the step-0 types**, fed by the mock arrays for now. That
 way you never block on track A's tables, and integration is a one-line change of input source.

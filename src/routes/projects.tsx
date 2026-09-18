@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { ArrowRight, Leaf, MapPin, Users } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { StatusDot } from "@/components/StatusDot";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { projectPlants, projectWorkers, projects } from "@/lib/rootline-data";
+import { listPlants } from "@/lib/api/plants";
+import { listProjects } from "@/lib/api/projects";
+import { listWorkers } from "@/lib/api/workers";
 
 export const Route = createFileRoute("/projects")({
   head: () => ({
@@ -19,14 +22,39 @@ export const Route = createFileRoute("/projects")({
       { property: "og:title", content: "Projects — Rootline" },
       {
         property: "og:description",
-        content: "Group plants and areas by project, with a site map and the crew assigned to it.",
+        content:
+          "Group plants and areas by project, with a site map and the crew assigned to it.",
       },
     ],
   }),
+  loader: async () => {
+    const [projects, allPlants, workers] = await Promise.all([
+      listProjects(),
+      listPlants(),
+      listWorkers(),
+    ]);
+    return { projects, allPlants, workers };
+  },
   component: Projects,
 });
 
 function Projects() {
+  const { projects, allPlants, workers } = Route.useLoaderData();
+
+  // Counts and crew names are derived here rather than per-project queries, which would mean
+  // calling hooks inside the render loop below.
+  const plantCountByProject = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const plant of allPlants) {
+      counts.set(plant.projectId, (counts.get(plant.projectId) ?? 0) + 1);
+    }
+    return counts;
+  }, [allPlants]);
+  const workerNameById = useMemo(
+    () => new Map(workers.map((w) => [w.id, w.name])),
+    [workers],
+  );
+
   return (
     <AppShell
       title="Projects"
@@ -34,8 +62,11 @@ function Projects() {
     >
       <div className="grid gap-4 lg:grid-cols-2">
         {projects.map((project) => {
-          const plants = projectPlants(project.id);
-          const crew = projectWorkers(project.id);
+          const plantCount = plantCountByProject.get(project.id) ?? 0;
+          const crew = project.workerIds.flatMap((id) => {
+            const name = workerNameById.get(id);
+            return name ? [{ id, name }] : [];
+          });
           return (
             <Card key={project.id} className="shadow-card">
               <CardHeader className="pb-3">
@@ -60,16 +91,24 @@ function Projects() {
 
                 <div className="grid grid-cols-3 gap-3 text-sm">
                   <div>
-                    <p className="text-xs text-muted-foreground">Plants & areas</p>
-                    <p className="font-medium">{plants.length}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Plants & areas
+                    </p>
+                    <p className="font-medium">{plantCount}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Visits / month</p>
+                    <p className="text-xs text-muted-foreground">
+                      Visits / month
+                    </p>
                     <p className="font-medium">{project.visitsPerMonth}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Monthly value</p>
-                    <p className="font-medium">€{project.monthlyValue.toLocaleString("en-US")}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Monthly value
+                    </p>
+                    <p className="font-medium">
+                      €{project.monthlyValue.toLocaleString("en-US")}
+                    </p>
                   </div>
                 </div>
 
