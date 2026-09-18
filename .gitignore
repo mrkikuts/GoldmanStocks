@@ -1,0 +1,16 @@
+# Secrets — never commit real keys (.env.example holds the variable names only)
+.env*
+!.env.example
+
+# Dependencies
+node_modules
+
+# Build output
+dist
+.output
+.nitro
+.wrangler
+.tanstack
+
+# OS / editor
+.DS_Store
