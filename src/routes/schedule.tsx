@@ -1,5 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, Cloud, CloudRain, Plus, Sparkles, Sun, Trash2 } from "lucide-react";
+import {
+  Check,
+  Cloud,
+  CloudRain,
+  Plus,
+  Sparkles,
+  Sun,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -24,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDate, useWeekPlan } from "@/hooks/use-week-plan";
-import { taskActions } from "@/lib/task-store";
+import { useTaskActions } from "@/hooks/use-tasks";
 import { projects, weekDays, workers, type Task } from "@/lib/rootline-data";
 
 export const Route = createFileRoute("/schedule")({
@@ -39,7 +47,8 @@ export const Route = createFileRoute("/schedule")({
       { property: "og:title", content: "Crew schedule — Goldman Stocks" },
       {
         property: "og:description",
-        content: "Weekly and daily crew calendars you can edit before approving.",
+        content:
+          "Weekly and daily crew calendars you can edit before approving.",
       },
     ],
   }),
@@ -60,6 +69,7 @@ const KINDS: Task["kind"][] = [
 ];
 
 function Schedule() {
+  const taskActions = useTaskActions();
   const week = useWeekPlan();
   const { weekDates, strip, weather } = week;
   // tasks as the plan stands: stored tasks with the live weather rules applied
@@ -70,22 +80,24 @@ function Schedule() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const crew = active === "all" ? workers : workers.filter((w) => w.id === active);
+  const crew =
+    active === "all" ? workers : workers.filter((w) => w.id === active);
   const dayTasks = tasks.filter((t) => t.day === day);
   const editing = tasks.find((t) => t.id === editingId) ?? null;
-  const isApproved = (d: number) => tasks.some((t) => t.day === d && t.approvedAt);
+  const isApproved = (d: number) =>
+    tasks.some((t) => t.day === d && t.approvedAt);
   const days = view === "day" ? [day] : weekDays.map((_, i) => i);
   const DayIcon = weatherIcon[strip[day]?.icon ?? "cloud"];
 
   function approve() {
     const approvedAt = new Date().toISOString();
     taskActions.replace(
-      tasks.filter((t) => days.includes(t.day)).map((t) => ({ ...t, approvedAt })),
+      tasks
+        .filter((t) => days.includes(t.day))
+        .map((t) => ({ ...t, approvedAt })),
     );
     toast.success(
-      view === "day"
-        ? `${weekDays[day]} plan approved`
-        : "Week plan approved",
+      view === "day" ? `${weekDays[day]} plan approved` : "Week plan approved",
     );
   }
 
@@ -122,7 +134,8 @@ function Schedule() {
             <Sparkles className="size-4" /> Plan with AI
           </Button>
           <Button onClick={approve} disabled={days.every(isApproved)}>
-            <Check className="size-4" /> Approve {view === "day" ? "day" : "week"}
+            <Check className="size-4" /> Approve{" "}
+            {view === "day" ? "day" : "week"}
           </Button>
         </div>
       }
@@ -134,7 +147,9 @@ function Schedule() {
               key={v}
               onClick={() => setView(v)}
               className={`rounded-full px-3 py-1.5 text-sm capitalize transition-colors ${
-                view === v ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                view === v
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted"
               }`}
             >
               {v}
@@ -142,7 +157,11 @@ function Schedule() {
           ))}
         </div>
         <span className="mx-1 h-6 w-px bg-border" />
-        <FilterChip label="All workers" active={active === "all"} onClick={() => setActive("all")} />
+        <FilterChip
+          label="All workers"
+          active={active === "all"}
+          onClick={() => setActive("all")}
+        />
         {workers.map((w) => (
           <FilterChip
             key={w.id}
@@ -182,8 +201,10 @@ function Schedule() {
               ) : (
                 <>
                   <DayIcon className="size-4" />
-                  {strip[day]?.temp === null ? "No forecast" : `${strip[day]?.temp}°C`} ·{" "}
-                  {strip[day]?.note}
+                  {strip[day]?.temp === null
+                    ? "No forecast"
+                    : `${strip[day]?.temp}°C`}{" "}
+                  · {strip[day]?.note}
                 </>
               )}
             </span>
@@ -194,7 +215,9 @@ function Schedule() {
               <div style={{ minWidth: 200 + crew.length * 180 }}>
                 <div
                   className="grid border-b bg-muted/40"
-                  style={{ gridTemplateColumns: `64px repeat(${crew.length}, 1fr)` }}
+                  style={{
+                    gridTemplateColumns: `64px repeat(${crew.length}, 1fr)`,
+                  }}
                 >
                   <div />
                   {crew.map((w) => (
@@ -218,18 +241,28 @@ function Schedule() {
 
                 <div
                   className="grid"
-                  style={{ gridTemplateColumns: `64px repeat(${crew.length}, 1fr)` }}
+                  style={{
+                    gridTemplateColumns: `64px repeat(${crew.length}, 1fr)`,
+                  }}
                 >
                   <HourColumn />
                   {crew.map((w) => (
                     <div key={w.id} className="relative border-l">
                       {HOURS.map((h) => (
-                        <div key={h} style={{ height: ROW }} className="border-b" />
+                        <div
+                          key={h}
+                          style={{ height: ROW }}
+                          className="border-b"
+                        />
                       ))}
                       {dayTasks
                         .filter((t) => t.workerId === w.id)
                         .map((t) => (
-                          <TaskBlock key={t.id} task={t} onClick={() => setEditingId(t.id)} />
+                          <TaskBlock
+                            key={t.id}
+                            task={t}
+                            onClick={() => setEditingId(t.id)}
+                          />
                         ))}
                     </div>
                   ))}
@@ -239,8 +272,8 @@ function Schedule() {
           </Card>
 
           <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Sparkles className="size-3.5" /> Tap any job to change the worker, time, length or
-            status.
+            <Sparkles className="size-3.5" /> Tap any job to change the worker,
+            time, length or status.
           </p>
         </>
       ) : (
@@ -258,7 +291,8 @@ function Schedule() {
                       ) : null}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {formatDate(weekDates[i] ?? "")} · {strip[i]?.temp ?? "—"}°
+                      {formatDate(weekDates[i] ?? "")} · {strip[i]?.temp ?? "—"}
+                      °
                     </p>
                   </div>
                 ))}
@@ -269,15 +303,24 @@ function Schedule() {
                 {weekDays.map((d, dayIndex) => (
                   <div key={d} className="relative border-l">
                     {HOURS.map((h) => (
-                      <div key={h} style={{ height: ROW }} className="border-b" />
+                      <div
+                        key={h}
+                        style={{ height: ROW }}
+                        className="border-b"
+                      />
                     ))}
                     {tasks
                       .filter(
                         (t) =>
-                          t.day === dayIndex && (active === "all" || t.workerId === active),
+                          t.day === dayIndex &&
+                          (active === "all" || t.workerId === active),
                       )
                       .map((t) => (
-                        <TaskBlock key={t.id} task={t} onClick={() => setEditingId(t.id)} />
+                        <TaskBlock
+                          key={t.id}
+                          task={t}
+                          onClick={() => setEditingId(t.id)}
+                        />
                       ))}
                   </div>
                 ))}
@@ -292,7 +335,11 @@ function Schedule() {
         open={Boolean(editing)}
         onClose={() => setEditingId(null)}
       />
-      <NewTaskDialog open={creating} day={day} onClose={() => setCreating(false)} />
+      <NewTaskDialog
+        open={creating}
+        day={day}
+        onClose={() => setCreating(false)}
+      />
     </AppShell>
   );
 }
@@ -330,8 +377,12 @@ function TaskBlock({ task, onClick }: { task: Task; onClick: () => void }) {
       }`}
     >
       <p className="truncate text-xs font-semibold">{task.title}</p>
-      <p className="truncate text-[11px] text-muted-foreground">{task.client}</p>
-      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{task.site}</p>
+      <p className="truncate text-[11px] text-muted-foreground">
+        {task.client}
+      </p>
+      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+        {task.site}
+      </p>
       {task.weatherNote ? (
         <p className="mt-1 flex items-center gap-1 text-[11px] text-status-attention">
           <CloudRain className="size-3 shrink-0" />
@@ -356,6 +407,7 @@ function TaskDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const taskActions = useTaskActions();
   if (!task) return null;
   return (
     <Dialog open={open} onOpenChange={(o) => (o ? null : onClose())}>
@@ -372,7 +424,9 @@ function TaskDialog({
             <Label>Job</Label>
             <Input
               value={task.title}
-              onChange={(e) => taskActions.update(task.id, { title: e.target.value })}
+              onChange={(e) =>
+                taskActions.update(task.id, { title: e.target.value })
+              }
             />
           </div>
 
@@ -380,7 +434,9 @@ function TaskDialog({
             <Label>Worker</Label>
             <Select
               value={task.workerId}
-              onValueChange={(v) => taskActions.update(task.id, { workerId: v })}
+              onValueChange={(v) =>
+                taskActions.update(task.id, { workerId: v })
+              }
             >
               <SelectTrigger>
                 <SelectValue />
@@ -400,7 +456,9 @@ function TaskDialog({
               <Label>Day</Label>
               <Select
                 value={String(task.day)}
-                onValueChange={(v) => taskActions.update(task.id, { day: Number(v) })}
+                onValueChange={(v) =>
+                  taskActions.update(task.id, { day: Number(v) })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -418,7 +476,9 @@ function TaskDialog({
               <Label>Start</Label>
               <Select
                 value={String(task.start)}
-                onValueChange={(v) => taskActions.update(task.id, { start: Number(v) })}
+                onValueChange={(v) =>
+                  taskActions.update(task.id, { start: Number(v) })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -436,7 +496,9 @@ function TaskDialog({
               <Label>Hours</Label>
               <Select
                 value={String(task.duration)}
-                onValueChange={(v) => taskActions.update(task.id, { duration: Number(v) })}
+                onValueChange={(v) =>
+                  taskActions.update(task.id, { duration: Number(v) })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -507,6 +569,7 @@ function NewTaskDialog({
   day: number;
   onClose: () => void;
 }) {
+  const taskActions = useTaskActions();
   const [title, setTitle] = useState("");
   const [projectId, setProjectId] = useState(projects[0]?.id ?? "p1");
   const [workerId, setWorkerId] = useState(workers[0]?.id ?? "w1");
@@ -522,7 +585,8 @@ function NewTaskDialog({
         <DialogHeader>
           <DialogTitle>Add a job</DialogTitle>
           <DialogDescription>
-            It lands on {weekDays[day]} and appears in the worker's list once you approve the day.
+            It lands on {weekDays[day]} and appears in the worker's list once
+            you approve the day.
           </DialogDescription>
         </DialogHeader>
 
@@ -598,7 +662,10 @@ function NewTaskDialog({
             </div>
             <div className="grid gap-2">
               <Label>Type</Label>
-              <Select value={kind} onValueChange={(v) => setKind(v as Task["kind"])}>
+              <Select
+                value={kind}
+                onValueChange={(v) => setKind(v as Task["kind"])}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -658,10 +725,14 @@ function FilterChip({
     <button
       onClick={onClick}
       className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${
-        active ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "hover:bg-muted"
       }`}
     >
-      {color ? <span className="size-2.5 rounded-full" style={{ background: color }} /> : null}
+      {color ? (
+        <span className="size-2.5 rounded-full" style={{ background: color }} />
+      ) : null}
       {label}
     </button>
   );

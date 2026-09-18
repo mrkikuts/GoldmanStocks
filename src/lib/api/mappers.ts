@@ -104,5 +104,9 @@ export function toTask(row: Row<"tasks">, clientName: string): Task {
     kind: row.kind as Task["kind"],
     ...(row.weather_note ? { weatherNote: row.weather_note } : {}),
     status: row.status as Task["status"],
+    // Optional on Task, so omitting them typechecks — but dropping them loses the planner's
+    // plant-level location and makes an approved plan read back as unapproved.
+    ...(row.plant_id ? { plantId: row.plant_id } : {}),
+    ...(row.approved_at ? { approvedAt: row.approved_at } : {}),
   };
 }

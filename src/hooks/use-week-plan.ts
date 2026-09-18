@@ -4,7 +4,7 @@ import { useCallback, useMemo } from "react";
 import { proposeDay } from "@/lib/planner";
 import { plants, projects, workers } from "@/lib/rootline-data";
 import { getWeekWeather } from "@/lib/weather.functions";
-import { useTasks } from "@/lib/task-store";
+import { useTasks } from "@/hooks/use-tasks";
 import {
   applyWeatherRules,
   COMPANY_TZ,

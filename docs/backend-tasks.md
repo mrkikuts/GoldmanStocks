@@ -164,7 +164,9 @@ way you never block on track A's tables, and integration is a one-line change of
 
 - [ ] Point track B's server functions at track A's tables — drop the remaining `rootline-data`
       imports.
-- [ ] Delete `src/lib/task-store.ts`. `rootline-data.ts` survives only as the seed source for A3.
+- [x] Deleted `src/lib/task-store.ts`. Tasks now persist: `useTasks()` / `useTaskActions()` in
+      `src/hooks/use-tasks.ts` read and write the database through `src/lib/api/tasks.ts`, so plan
+      approval, schedule edits and mobile completions survive a reload.
 - [ ] `bun run lint` clean, `bun run dev` clean.
 - [ ] Walk the demo script in `docs/goldmanStocks.md` → "Hackathon demo", end to end:
       rain skips watering → boss approves the plan → worker completes a task with a photo →

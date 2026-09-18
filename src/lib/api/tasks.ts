@@ -43,12 +43,47 @@ export const projectTasks = createServerFn({ method: "GET" })
   });
 
 // --- mutations -------------------------------------------------------------------------
-// These mirror `taskActions` in src/lib/task-store.ts. The store itself stays: schedule.tsx
-// (Track B's file) still drives it, and swapping that over happens at Integration.
+// These back `useTaskActions()` in src/hooks/use-tasks.ts, which replaced the in-memory
+// src/lib/task-store.ts. Call them through that hook rather than directly, so the cached
+// task list is refetched and every open view stays in step.
 
 export type TaskPatch = Partial<
-  Pick<Task, "title" | "workerId" | "day" | "start" | "duration" | "status">
+  Pick<
+    Task,
+    | "title"
+    | "workerId"
+    | "day"
+    | "start"
+    | "duration"
+    | "status"
+    | "site"
+    | "kind"
+    | "weatherNote"
+    | "plantId"
+    | "approvedAt"
+  >
 >;
+
+/** TaskPatch -> column names, in one place so update and replace can't drift apart. */
+function toRow(patch: TaskPatch) {
+  return {
+    ...(patch.title !== undefined ? { title: patch.title } : {}),
+    ...(patch.workerId !== undefined ? { worker_id: patch.workerId } : {}),
+    ...(patch.day !== undefined ? { day: patch.day } : {}),
+    ...(patch.start !== undefined ? { start: patch.start } : {}),
+    ...(patch.duration !== undefined ? { duration: patch.duration } : {}),
+    ...(patch.status !== undefined ? { status: patch.status } : {}),
+    ...(patch.site !== undefined ? { site: patch.site } : {}),
+    ...(patch.kind !== undefined ? { kind: patch.kind } : {}),
+    ...(patch.weatherNote !== undefined
+      ? { weather_note: patch.weatherNote }
+      : {}),
+    ...(patch.plantId !== undefined ? { plant_id: patch.plantId } : {}),
+    ...(patch.approvedAt !== undefined
+      ? { approved_at: patch.approvedAt }
+      : {}),
+  };
+}
 
 export const updateTask = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string; patch: TaskPatch }) => input)
@@ -57,17 +92,40 @@ export const updateTask = createServerFn({ method: "POST" })
       await getAuthedClient()
     )
       .from("tasks")
-      .update({
-        ...(patch.title !== undefined ? { title: patch.title } : {}),
-        ...(patch.workerId !== undefined ? { worker_id: patch.workerId } : {}),
-        ...(patch.day !== undefined ? { day: patch.day } : {}),
-        ...(patch.start !== undefined ? { start: patch.start } : {}),
-        ...(patch.duration !== undefined ? { duration: patch.duration } : {}),
-        ...(patch.status !== undefined ? { status: patch.status } : {}),
-      })
+      .update(toRow(patch))
       .eq("id", id);
     if (error) throw new Error(error.message);
     return { id };
+  });
+
+/**
+ * Write a whole set of tasks at once — what "approve today's plan" and the schedule's plan
+ * generation do. One upsert rather than a request per task, so a twelve-task plan is a single
+ * round trip and cannot half-apply.
+ */
+export const replaceTasks = createServerFn({ method: "POST" })
+  .inputValidator((tasks: Task[]) => tasks)
+  .handler(async ({ data: tasks }) => {
+    if (tasks.length === 0) return { count: 0 };
+    const { error } = await (await getAuthedClient()).from("tasks").upsert(
+      tasks.map((task) => ({
+        id: task.id,
+        project_id: task.projectId,
+        site: task.site,
+        worker_id: task.workerId,
+        title: task.title,
+        day: task.day,
+        start: task.start,
+        duration: task.duration,
+        kind: task.kind,
+        weather_note: task.weatherNote ?? null,
+        status: task.status,
+        plant_id: task.plantId ?? null,
+        approved_at: task.approvedAt ?? null,
+      })),
+    );
+    if (error) throw new Error(error.message);
+    return { count: tasks.length };
   });
 
 export const removeTask = createServerFn({ method: "POST" })
@@ -99,6 +157,7 @@ export const addTask = createServerFn({ method: "POST" })
       kind: task.kind,
       weather_note: task.weatherNote ?? null,
       status: task.status,
+      plant_id: task.plantId ?? null,
     });
     if (error) throw new Error(error.message);
     return { id };

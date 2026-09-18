@@ -1,12 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Camera, Check, CloudRain, CloudSun, MapPin, RotateCcw, Sun, X } from "lucide-react";
+import {
+  Camera,
+  Check,
+  CloudRain,
+  CloudSun,
+  MapPin,
+  RotateCcw,
+  Sun,
+  X,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { setCaptureHandler } from "@/lib/photo-store";
 import { weather, weekDates, weekDays, type Task } from "@/lib/rootline-data";
-import { taskActions, useTasks } from "@/lib/task-store";
+import { useTaskActions, useTasks } from "@/hooks/use-tasks";
 import { useActiveWorker } from "@/lib/worker-store";
 
 export const Route = createFileRoute("/mobile/")({
@@ -20,6 +29,7 @@ function hour(t: Task) {
 }
 
 function WorkerDay() {
+  const taskActions = useTaskActions();
   const tasks = useTasks();
   const [day, setDay] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -27,7 +37,8 @@ function WorkerDay() {
 
   const worker = useActiveWorker();
   const today = weather[day];
-  const Icon = weatherIcon[(today?.icon ?? "cloud") as keyof typeof weatherIcon];
+  const Icon =
+    weatherIcon[(today?.icon ?? "cloud") as keyof typeof weatherIcon];
 
   const myJobs = tasks
     .filter((t) => t.day === day && t.workerId === worker?.id)
@@ -74,10 +85,15 @@ function WorkerDay() {
       />
 
       <div>
-        <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.12em] text-accent-foreground">Your workday</p>
-        <h1 className="font-display text-3xl font-bold text-primary">Tere, {worker?.name.split(" ")[0]}</h1>
+        <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.12em] text-accent-foreground">
+          Your workday
+        </p>
+        <h1 className="font-display text-3xl font-bold text-primary">
+          Tere, {worker?.name.split(" ")[0]}
+        </h1>
         <p className="mt-1 text-sm font-medium text-muted-foreground">
-          {weekDays[day]} {weekDates[day]} · {doneCount}/{myJobs.length} jobs done
+          {weekDays[day]} {weekDates[day]} · {doneCount}/{myJobs.length} jobs
+          done
         </p>
       </div>
 
@@ -89,11 +105,19 @@ function WorkerDay() {
             variant="outline"
             onClick={() => setDay(i)}
             className={`h-auto min-w-14 flex-col rounded-lg px-3 py-2 text-xs shadow-none ${
-              i === day ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "bg-card"
+              i === day
+                ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                : "bg-card"
             }`}
           >
             <span className="font-medium">{d}</span>
-            <span className={i === day ? "text-[11px] text-primary-foreground/70" : "text-[11px] text-muted-foreground"}>
+            <span
+              className={
+                i === day
+                  ? "text-[11px] text-primary-foreground/70"
+                  : "text-[11px] text-muted-foreground"
+              }
+            >
               {weekDates[i]?.split(" ")[0]}
             </span>
           </Button>
@@ -104,7 +128,9 @@ function WorkerDay() {
         <Icon className="size-5 text-accent-foreground" />
         <div className="min-w-0 text-sm">
           <p className="font-medium">{today?.temp}°C</p>
-          <p className="truncate text-xs text-muted-foreground">{today?.note}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {today?.note}
+          </p>
         </div>
       </div>
 
@@ -133,7 +159,9 @@ function WorkerDay() {
                       {t.client} · {t.site}
                     </p>
                   </div>
-                  <span className="text-xs text-muted-foreground">{t.duration} h</span>
+                  <span className="text-xs text-muted-foreground">
+                    {t.duration} h
+                  </span>
                 </div>
 
                 {t.weatherNote ? (
@@ -151,7 +179,9 @@ function WorkerDay() {
                       type="button"
                       variant="outline"
                       size="icon"
-                      onClick={() => taskActions.update(t.id, { status: "planned" })}
+                      onClick={() =>
+                        taskActions.update(t.id, { status: "planned" })
+                      }
                       className="size-11 text-muted-foreground shadow-none"
                       aria-label="Mark as not done"
                     >
@@ -174,11 +204,14 @@ function WorkerDay() {
                       size="icon"
                       onClick={() => {
                         taskActions.update(t.id, {
-                          status: t.status === "skipped" ? "planned" : "skipped",
+                          status:
+                            t.status === "skipped" ? "planned" : "skipped",
                         });
                       }}
                       className={`size-12 shadow-none ${
-                        t.status === "skipped" ? "border-primary text-primary" : "text-muted-foreground"
+                        t.status === "skipped"
+                          ? "border-primary text-primary"
+                          : "text-muted-foreground"
                       }`}
                       aria-label="Skip job"
                     >

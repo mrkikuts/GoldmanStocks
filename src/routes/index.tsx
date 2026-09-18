@@ -36,7 +36,7 @@ import type { DayPlan } from "@/lib/planner";
 import { plants, clients, projects, workers } from "@/lib/rootline-data";
 import { draftOffers } from "@/lib/outreach.functions";
 import { explainPlan, type ExplainPlanInput } from "@/lib/plan.functions";
-import { taskActions } from "@/lib/task-store";
+import { useTaskActions } from "@/hooks/use-tasks";
 import type { Offer, OfferStatus, Plant, Task } from "@/lib/types";
 import { overnightRainMm, primaryProject } from "@/lib/weather";
 
@@ -49,7 +49,10 @@ export const Route = createFileRoute("/")({
         content:
           "Goldman Stocks plans every gardener's day around each plant's care schedule and the weather, with proof of work for every client.",
       },
-      { property: "og:title", content: "Goldman Stocks — plant-aware crew planning" },
+      {
+        property: "og:title",
+        content: "Goldman Stocks — plant-aware crew planning",
+      },
       {
         property: "og:description",
         content:
@@ -81,6 +84,7 @@ function toStop(t: Task) {
 }
 
 function Dashboard() {
+  const taskActions = useTaskActions();
   const week = useWeekPlan();
   const { today, weekDates, weather, forecasts, strip, propose } = week;
   const todayDate = weekDates[today] ?? weekDates[0]!;
@@ -121,7 +125,10 @@ function Dashboard() {
     setReviewing(true);
     explanation.mutate({
       date: todayDate,
-      weather: { tempC: strip[today]?.temp ?? null, note: strip[today]?.note ?? "" },
+      weather: {
+        tempC: strip[today]?.temp ?? null,
+        note: strip[today]?.note ?? "",
+      },
       workers: proposal.byWorker.map((p) => {
         const w = workers.find((x) => x.id === p.workerId);
         return {
@@ -213,7 +220,9 @@ function Dashboard() {
 
       <Card className="mt-6 shadow-card">
         <CardHeader className="flex-row items-center justify-between">
-          <CardTitle className="text-base">This week's weather, applied to the plan</CardTitle>
+          <CardTitle className="text-base">
+            This week's weather, applied to the plan
+          </CardTitle>
           {weather.data?.stale ? (
             <Badge variant="outline" className="text-status-attention">
               offline — forecast from{" "}
@@ -226,11 +235,13 @@ function Dashboard() {
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-5">
           {weather.isPending ? (
-            weekDates.map((d) => <Skeleton key={d} className="h-[104px] rounded-xl" />)
+            weekDates.map((d) => (
+              <Skeleton key={d} className="h-[104px] rounded-xl" />
+            ))
           ) : weather.isError ? (
             <p className="text-sm text-muted-foreground sm:col-span-5">
-              {weather.error.message}. The plan shows no weather changes until the forecast
-              loads.
+              {weather.error.message}. The plan shows no weather changes until
+              the forecast loads.
             </p>
           ) : (
             strip.map((w, i) => {
@@ -292,11 +303,16 @@ function Dashboard() {
                   </p>
                   <div className="mt-2 flex items-center justify-between">
                     <StatusDot status={p.status} />
-                    <span className="text-xs text-muted-foreground">{p.nextTask}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {p.nextTask}
+                    </span>
                   </div>
                 </div>
               ))}
-              <Link to="/plants" className="block text-sm text-primary hover:underline">
+              <Link
+                to="/plants"
+                className="block text-sm text-primary hover:underline"
+              >
                 See all plants
               </Link>
             </CardContent>
@@ -313,12 +329,17 @@ function Dashboard() {
                 </p>
               ) : (
                 opportunities.map((o) => (
-                  <div key={o.projectId} className="flex items-start justify-between gap-3">
+                  <div
+                    key={o.projectId}
+                    className="flex items-start justify-between gap-3"
+                  >
                     <div>
                       <p className="text-sm font-medium">{o.client}</p>
                       <p className="text-xs text-muted-foreground">{o.what}</p>
                     </div>
-                    <span className="text-sm font-semibold whitespace-nowrap">€{o.value}</span>
+                    <span className="text-sm font-semibold whitespace-nowrap">
+                      €{o.value}
+                    </span>
                   </div>
                 ))
               )}
@@ -345,12 +366,20 @@ function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-2">
               {clients.slice(0, 4).map((c) => (
-                <div key={c.id} className="flex items-center justify-between text-sm">
+                <div
+                  key={c.id}
+                  className="flex items-center justify-between text-sm"
+                >
                   <span>{c.name}</span>
-                  <span className="text-muted-foreground">{c.hoursThisMonth} h</span>
+                  <span className="text-muted-foreground">
+                    {c.hoursThisMonth} h
+                  </span>
                 </div>
               ))}
-              <Link to="/clients" className="block text-sm text-primary hover:underline">
+              <Link
+                to="/clients"
+                className="block text-sm text-primary hover:underline"
+              >
                 Client list
               </Link>
             </CardContent>
@@ -363,8 +392,8 @@ function Dashboard() {
           <DialogHeader>
             <DialogTitle>Today's plan</DialogTitle>
             <DialogDescription>
-              {onShift.length} workers · {plannedHours} h planned · {weatherSkips} skipped by
-              weather
+              {onShift.length} workers · {plannedHours} h planned ·{" "}
+              {weatherSkips} skipped by weather
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-lg border bg-muted/40 p-3 text-sm">
@@ -399,8 +428,9 @@ function Dashboard() {
           <DialogHeader>
             <DialogTitle>Draft offers</DialogTitle>
             <DialogDescription>
-              Drafted by AI from each client's plants and this week's weather. Nothing is
-              sent — approve the ones you want and send them from your email.
+              Drafted by AI from each client's plants and this week's weather.
+              Nothing is sent — approve the ones you want and send them from
+              your email.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -420,7 +450,9 @@ function Dashboard() {
                       <Badge
                         variant="outline"
                         className={
-                          decision === "approved" ? "text-status-healthy" : "text-muted-foreground"
+                          decision === "approved"
+                            ? "text-status-healthy"
+                            : "text-muted-foreground"
                         }
                       >
                         {decision}
@@ -432,10 +464,17 @@ function Dashboard() {
                   </p>
                   {decision === "draft" ? (
                     <div className="mt-3 flex justify-end gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => decide(offer, "dismissed")}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => decide(offer, "dismissed")}
+                      >
                         Dismiss
                       </Button>
-                      <Button size="sm" onClick={() => decide(offer, "approved")}>
+                      <Button
+                        size="sm"
+                        onClick={() => decide(offer, "approved")}
+                      >
                         Approve
                       </Button>
                     </div>
@@ -463,7 +502,9 @@ function WorkerPlan({ plan }: { plan: DayPlan }) {
       </div>
       <ul className="mt-2 space-y-1.5">
         {plan.stops.length === 0 && plan.skipped.length === 0 ? (
-          <li className="text-sm text-muted-foreground">No tasks — available</li>
+          <li className="text-sm text-muted-foreground">
+            No tasks — available
+          </li>
         ) : null}
         {plan.stops.map((t) => (
           <li key={t.id} className="flex flex-wrap items-center gap-2 text-sm">
@@ -477,11 +518,16 @@ function WorkerPlan({ plan }: { plan: DayPlan }) {
                 {t.weatherNote}
               </Badge>
             ) : null}
-            {t.status === "done" ? <CheckCircle2 className="size-4 text-status-healthy" /> : null}
+            {t.status === "done" ? (
+              <CheckCircle2 className="size-4 text-status-healthy" />
+            ) : null}
           </li>
         ))}
         {plan.skipped.map((t) => (
-          <li key={t.id} className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <li
+            key={t.id}
+            className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground"
+          >
             <span className="line-through">{t.title}</span>
             <span>· {t.client}</span>
             <Badge variant="outline" className="text-status-attention">
