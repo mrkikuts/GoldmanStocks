@@ -38,7 +38,7 @@ export function parseShortDate(value: string) {
   return new Date(2026, MONTHS[month ?? "Sep"] ?? 8, Number(day) || 1);
 }
 
-const intervalByKind: Record<Plant["kind"], number> = {
+export const intervalByKind: Record<Plant["kind"], number> = {
   Lawn: 7,
   Hedge: 21,
   Tree: 45,
