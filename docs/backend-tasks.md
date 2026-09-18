@@ -152,7 +152,11 @@ way you never block on track A's tables, and integration is a one-line change of
       plain-language explanation of today's plan behind the "Approve today's plan" button on the
       dashboard, and drafted repeat-work offers behind the revenue card. The boss approves before
       anything is sent — never auto-send.
-- [ ] **B5 — Photo proof.** A Supabase Storage bucket, a signed upload, and a
+- [x] **B5 — Photo proof.** Wired end to end: `src/lib/photos.functions.ts` wraps the backend,
+      `useTaskActions().completeWithPhoto()` runs the three steps, and the mobile camera button
+      uses it. The photo uploads browser → storage directly, so it never passes through the app
+      server, and the job is only marked done once the photo is actually stored.
+      Original scope: a Supabase Storage bucket, a signed upload, and a
       `completeTask(taskId, photo, timestamp, gps)` server function writing `task_photos` and
       flipping the task to `done`.
 - [ ] **B6 — Wire your routes.** `schedule.tsx` (the week grid and the weather strip) and

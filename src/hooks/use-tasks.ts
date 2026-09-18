@@ -9,7 +9,22 @@ import {
   updateTask,
   type TaskPatch,
 } from "@/lib/api/tasks";
+import { completeTask, createPhotoUploadUrl } from "@/lib/photos.functions";
+import { PHOTO_BUCKET } from "@/lib/server/photos";
+import { supabase } from "@/lib/supabase/client";
 import type { Task } from "@/lib/types";
+
+/** Best-effort GPS. Proof is still worth recording without it, so never block on a refusal. */
+async function currentPosition(): Promise<{ lat: number; lng: number } | null> {
+  if (typeof navigator === "undefined" || !navigator.geolocation) return null;
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { timeout: 5000, maximumAge: 60_000 },
+    );
+  });
+}
 
 const TASKS_KEY = ["tasks"] as const;
 
@@ -55,13 +70,46 @@ export function useTaskActions() {
     onSuccess: invalidate,
   });
 
+  /**
+   * Finish a task with photo proof — B5's three steps: ask for a signed upload URL, send the
+   * photo straight from the phone to storage, then record it and flip the task to done.
+   *
+   * The upload deliberately goes browser → storage rather than through a server function, so a
+   * multi-megabyte photo never travels through the app server.
+   */
+  const completeWithPhoto = useMutation({
+    mutationFn: async ({ taskId, file }: { taskId: string; file: File }) => {
+      const upload = await createPhotoUploadUrl({
+        data: { taskId, contentType: file.type as "image/jpeg" },
+      });
+      const { error } = await supabase.storage
+        .from(PHOTO_BUCKET)
+        .uploadToSignedUrl(upload.path, upload.token, file);
+      if (error) throw error;
+
+      const where = await currentPosition();
+      return completeTask({
+        data: {
+          taskId,
+          photoPath: upload.path,
+          takenAt: new Date().toISOString(),
+          lat: where?.lat ?? null,
+          lng: where?.lng ?? null,
+        },
+      });
+    },
+    onSuccess: invalidate,
+  });
+
   return useMemo(
     () => ({
       update: (id: string, patch: TaskPatch) => update.mutate({ id, patch }),
+      completeWithPhoto: (taskId: string, file: File) =>
+        completeWithPhoto.mutateAsync({ taskId, file }),
       remove: (id: string) => remove.mutate(id),
       add: (task: Omit<Task, "id">) => add.mutate(task),
       replace: (tasks: Task[]) => replace.mutate(tasks),
     }),
-    [update, remove, add, replace],
+    [update, remove, add, replace, completeWithPhoto],
   );
 }

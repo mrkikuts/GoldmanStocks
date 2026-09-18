@@ -51,14 +51,28 @@ function WorkerDay() {
     fileRef.current?.click();
   }
 
-  function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     const id = pendingTask.current;
     pendingTask.current = null;
     if (!file || !id) return;
-    taskActions.update(id, { status: "done" });
-    toast.success("Photo saved — job marked done");
+
+    // The photo is the proof, so the job is only done once it is actually stored. Uploading
+    // first and marking done second means a failed upload leaves the job open rather than
+    // claiming work that has no evidence behind it.
+    const pending = toast.loading("Uploading photo…");
+    try {
+      await taskActions.completeWithPhoto(id, file);
+      toast.success("Photo saved — job marked done", { id: pending });
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Couldn't save the photo — job left open",
+        { id: pending },
+      );
+    }
   }
 
   // The floating camera button in the tab bar photographs the next open job.
