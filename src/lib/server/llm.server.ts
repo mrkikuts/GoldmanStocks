@@ -1,57 +1,59 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 
-/** Server-only Claude access. The `.server.ts` suffix keeps this out of the browser bundle. */
+/** Server-only OpenAI access. The `.server.ts` suffix keeps this out of the browser bundle. */
 
-export const MODEL = "claude-opus-5";
-/** Server-side refusal fallback: a declined request is re-run on Anthropic's recommended model. */
-export const FALLBACK_BETA = "server-side-fallback-2026-07-01";
+/** Overridable without a code change — set OPENAI_MODEL in .env to try a different one. */
+export const MODEL = process.env["OPENAI_MODEL"] || "gpt-4o";
 
 /** A failure with a message that's safe and useful to show the boss. */
 export class LlmError extends Error {
   override name = "LlmError";
 }
 
-let client: Anthropic | undefined;
+let client: OpenAI | undefined;
 
-export function getAnthropic(): Anthropic {
-  if (!process.env["ANTHROPIC_API_KEY"]) {
+export function getOpenAI(): OpenAI {
+  if (!process.env["OPENAI_API_KEY"]) {
     throw new LlmError(
-      "ANTHROPIC_API_KEY is not set — add it to .env and restart the dev server.",
+      "OPENAI_API_KEY is not set — add it to .env and restart the dev server.",
     );
   }
-  client ??= new Anthropic();
+  client ??= new OpenAI();
   return client;
 }
 
 /** Turn SDK errors into a readable message (most specific first); pass LlmErrors through. */
 export function toLlmError(error: unknown): LlmError {
   if (error instanceof LlmError) return error;
-  if (error instanceof Anthropic.AuthenticationError) {
+  if (error instanceof OpenAI.AuthenticationError) {
     return new LlmError(
-      "The Anthropic API key was rejected — check ANTHROPIC_API_KEY.",
+      "The OpenAI API key was rejected — check OPENAI_API_KEY.",
     );
   }
-  if (error instanceof Anthropic.RateLimitError) {
+  if (error instanceof OpenAI.RateLimitError) {
     return new LlmError(
-      "Claude is rate-limited right now — try again in a minute.",
+      "OpenAI is rate-limited right now — try again in a minute.",
     );
   }
-  if (error instanceof Anthropic.APIConnectionError) {
+  if (error instanceof OpenAI.APIConnectionError) {
+    return new LlmError("Couldn't reach the OpenAI API — check the network.");
+  }
+  if (error instanceof OpenAI.APIError) {
     return new LlmError(
-      "Couldn't reach the Anthropic API — check the network.",
+      `OpenAI request failed (${error.status ?? "no status"}).`,
     );
   }
-  if (error instanceof Anthropic.APIError) {
-    return new LlmError(
-      `Claude request failed (${error.status ?? "no status"}).`,
-    );
-  }
-  return new LlmError("Claude request failed.");
+  return new LlmError("OpenAI request failed.");
 }
 
-/** Throw a readable error when Claude (and the fallback) declined the request. */
-export function assertNotRefused(message: { stop_reason: string | null }) {
-  if (message.stop_reason === "refusal") {
-    throw new LlmError("Claude declined this request.");
+/**
+ * Throw a readable error when the model declined the request.
+ *
+ * OpenAI surfaces this as a `refusal` string on the message rather than a stop reason, and it
+ * can arrive on both plain and structured-output responses.
+ */
+export function assertNotRefused(message: { refusal?: string | null }) {
+  if (message.refusal) {
+    throw new LlmError("The model declined this request.");
   }
 }

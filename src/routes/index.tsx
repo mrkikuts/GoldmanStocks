@@ -399,7 +399,7 @@ function Dashboard() {
           <DialogHeader>
             <DialogTitle>Draft offers</DialogTitle>
             <DialogDescription>
-              Drafted by Claude from each client's plants and this week's weather. Nothing is
+              Drafted by AI from each client's plants and this week's weather. Nothing is
               sent — approve the ones you want and send them from your email.
             </DialogDescription>
           </DialogHeader>

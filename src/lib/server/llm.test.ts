@@ -1,5 +1,5 @@
 /// <reference types="bun" />
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { describe, expect, test } from "bun:test";
 
 import { LlmError, MODEL, toLlmError } from "./llm.server";
@@ -7,7 +7,7 @@ import { draftOffersWith, type DraftOffersInput } from "./outreach";
 import { explainPlanWith, type ExplainPlanInput } from "./plan";
 
 type Call = Record<string, unknown> & {
-  output_config?: Record<string, unknown>;
+  response_format?: Record<string, unknown>;
 };
 
 /** A stand-in client that records requests and replies with `reply` (or throws it). */
@@ -19,8 +19,8 @@ function fakeClient(reply: unknown) {
     return reply;
   };
   const client = {
-    beta: { messages: { create: respond, parse: respond } },
-  } as unknown as Anthropic;
+    chat: { completions: { create: respond, parse: respond } },
+  } as unknown as OpenAI;
   return { client, calls };
 }
 
@@ -87,41 +87,40 @@ const opportunities: DraftOffersInput = {
 };
 
 describe("explainPlan", () => {
-  test("asks Opus 5 with the refusal fallback and low effort, returns the text", async () => {
+  test("asks the configured model and returns the text", async () => {
     const { client, calls } = fakeClient({
-      stop_reason: "end_turn",
-      content: [
-        { type: "thinking", thinking: "" },
+      choices: [
         {
-          type: "text",
-          text: "Liis mows at the hotel; watering is off after rain.",
+          message: {
+            role: "assistant",
+            content: "Liis mows at the hotel; watering is off after rain.",
+          },
         },
       ],
     });
     const text = await explainPlanWith(client, plan);
     expect(text).toBe("Liis mows at the hotel; watering is off after rain.");
     expect(calls[0]?.["model"]).toBe(MODEL);
-    expect(calls[0]?.["fallbacks"]).toBe("default");
-    expect(calls[0]?.["betas"]).toEqual(["server-side-fallback-2026-07-01"]);
-    expect(calls[0]?.output_config?.["effort"]).toBe("low");
     expect(
       String(calls[0]?.["messages"] && JSON.stringify(calls[0]["messages"])),
     ).toContain("Skipped — 9 mm rain overnight");
   });
 
   test("a refusal becomes a readable error", async () => {
-    const { client } = fakeClient({ stop_reason: "refusal", content: [] });
-    await expect(explainPlanWith(client, plan)).rejects.toThrow(
-      "Claude declined",
-    );
+    const { client } = fakeClient({
+      choices: [
+        { message: { role: "assistant", refusal: "no", content: null } },
+      ],
+    });
+    await expect(explainPlanWith(client, plan)).rejects.toThrow("declined");
   });
 
   test("SDK errors are mapped to readable messages", async () => {
-    const { client } = fakeClient(sdkError(Anthropic.RateLimitError));
+    const { client } = fakeClient(sdkError(OpenAI.RateLimitError));
     await expect(explainPlanWith(client, plan)).rejects.toThrow("rate-limited");
-    expect(
-      toLlmError(sdkError(Anthropic.AuthenticationError)).message,
-    ).toContain("API key was rejected");
+    expect(toLlmError(sdkError(OpenAI.AuthenticationError)).message).toContain(
+      "API key was rejected",
+    );
     expect(toLlmError(new Error("boom"))).toBeInstanceOf(LlmError);
   });
 });
@@ -129,29 +128,33 @@ describe("explainPlan", () => {
 describe("draftOffers", () => {
   test("uses structured output and returns one draft per opportunity", async () => {
     const { client, calls } = fakeClient({
-      stop_reason: "end_turn",
-      content: [],
-      parsed_output: {
-        offers: [
-          {
-            projectId: "p2",
-            subject: "Lawn mowing next week",
-            body: "Dear Peeter, …",
+      choices: [
+        {
+          message: {
+            role: "assistant",
+            parsed: {
+              offers: [
+                {
+                  projectId: "p2",
+                  subject: "Lawn mowing next week",
+                  body: "Dear Peeter, …",
+                },
+                {
+                  projectId: "p4",
+                  subject: "Box hedge clipping",
+                  body: "Dear Ilze, …",
+                },
+              ],
+            },
           },
-          {
-            projectId: "p4",
-            subject: "Box hedge clipping",
-            body: "Dear Ilze, …",
-          },
-        ],
-      },
+        },
+      ],
     });
     const now = new Date("2026-09-18T09:00:00Z");
     const offers = await draftOffersWith(client, opportunities, now);
 
     expect(calls[0]?.["model"]).toBe(MODEL);
-    expect(calls[0]?.["fallbacks"]).toBe("default");
-    expect(calls[0]?.output_config?.["format"]).toBeDefined();
+    expect(calls[0]?.["response_format"]).toBeDefined();
     expect(offers.map((o) => o.projectId)).toEqual(["p4", "p2"]); // input order
     expect(offers[0]).toMatchObject({
       clientId: "c4",
@@ -165,9 +168,14 @@ describe("draftOffers", () => {
 
   test("drafts are never marked approved or sent", async () => {
     const { client } = fakeClient({
-      stop_reason: "end_turn",
-      content: [],
-      parsed_output: { offers: [{ projectId: "p4", subject: "s", body: "b" }] },
+      choices: [
+        {
+          message: {
+            role: "assistant",
+            parsed: { offers: [{ projectId: "p4", subject: "s", body: "b" }] },
+          },
+        },
+      ],
     });
     const offers = await draftOffersWith(client, opportunities);
     expect(offers.every((o) => o.status === "draft")).toBe(true);
@@ -175,20 +183,18 @@ describe("draftOffers", () => {
 
   test("unparseable output and refusals are readable errors", async () => {
     const unparsed = fakeClient({
-      stop_reason: "end_turn",
-      content: [],
-      parsed_output: null,
+      choices: [{ message: { role: "assistant", parsed: null } }],
     });
     await expect(
       draftOffersWith(unparsed.client, opportunities),
     ).rejects.toThrow(LlmError);
     const refused = fakeClient({
-      stop_reason: "refusal",
-      content: [],
-      parsed_output: null,
+      choices: [
+        { message: { role: "assistant", refusal: "no", parsed: null } },
+      ],
     });
     await expect(
       draftOffersWith(refused.client, opportunities),
-    ).rejects.toThrow("Claude declined");
+    ).rejects.toThrow("declined");
   });
 });

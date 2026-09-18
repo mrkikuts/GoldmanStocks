@@ -1,16 +1,11 @@
-import type Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import type OpenAI from "openai";
+import { zodResponseFormat } from "openai/helpers/zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod/v4";
 
 import type { Offer, OfferStatus } from "@/lib/types";
 
-import {
-  assertNotRefused,
-  FALLBACK_BETA,
-  MODEL,
-  toLlmError,
-} from "./llm.server";
+import { assertNotRefused, MODEL, toLlmError } from "./llm.server";
 
 /** Opportunities from outreach.findOpportunities(), as sent by the dashboard. */
 export const DraftOffersInput = z.object({
@@ -55,28 +50,24 @@ opportunity, using its projectId. Don't invent facts, discounts or dates.`;
  * the boss approves or dismisses each one.
  */
 export async function draftOffersWith(
-  client: Anthropic,
+  client: OpenAI,
   input: DraftOffersInput,
   now = new Date(),
 ): Promise<Offer[]> {
   let parsed: z.infer<typeof OfferDrafts> | null;
   try {
-    const message = await client.beta.messages.parse({
+    const completion = await client.chat.completions.parse({
       model: MODEL,
-      max_tokens: 16000,
-      betas: [FALLBACK_BETA],
-      fallbacks: "default",
-      output_config: {
-        effort: "medium",
-        format: betaZodOutputFormat(OfferDrafts),
-      },
-      system: SYSTEM,
       messages: [
+        { role: "system", content: SYSTEM },
         { role: "user", content: JSON.stringify(input.opportunities) },
       ],
+      response_format: zodResponseFormat(OfferDrafts, "offer_drafts"),
     });
+    const message = completion.choices[0]?.message;
+    if (!message) throw new Error("empty response");
     assertNotRefused(message);
-    parsed = message.parsed_output;
+    parsed = message.parsed;
   } catch (error) {
     throw toLlmError(error);
   }

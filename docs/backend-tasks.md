@@ -36,7 +36,7 @@ should never need to wait on each other or resolve a merge conflict.
       VITE_SUPABASE_URL=...
       VITE_SUPABASE_ANON_KEY=...
       SUPABASE_SERVICE_ROLE_KEY=...   # server only — no VITE_ prefix
-      ANTHROPIC_API_KEY=...           # server only — no VITE_ prefix
+      OPENAI_API_KEY=...              # server only — no VITE_ prefix
       ```
 - [x] `bun add @supabase/supabase-js @supabase/ssr` (heads up: `bunfig.toml` blocks package versions
       published in the last 24h). `@supabase/ssr` is what keeps the session in cookies so server
@@ -148,11 +148,10 @@ way you never block on track A's tables, and integration is a one-line change of
 - [ ] **B3 — Planner (pure).** Assign the day's tasks to workers (respect role and language —
       `workers` has both), then order each worker's route with nearest-neighbor + 2-opt over the
       plant `x` / `y` coordinates.
-- [ ] **B4 — LLM.** Server-side only (`ANTHROPIC_API_KEY`, no `VITE_` prefix). Two jobs: a
+- [ ] **B4 — LLM.** Server-side only (`OPENAI_API_KEY`, no `VITE_` prefix). Two jobs: a
       plain-language explanation of today's plan behind the "Approve today's plan" button on the
       dashboard, and drafted repeat-work offers behind the revenue card. The boss approves before
       anything is sent — never auto-send.
-      ⚠️ Run `/claude-api` before writing this; don't guess model ids or SDK shapes.
 - [ ] **B5 — Photo proof.** A Supabase Storage bucket, a signed upload, and a
       `completeTask(taskId, photo, timestamp, gps)` server function writing `task_photos` and
       flipping the task to `done`.

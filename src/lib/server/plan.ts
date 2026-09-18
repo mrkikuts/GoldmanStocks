@@ -1,12 +1,7 @@
-import type Anthropic from "@anthropic-ai/sdk";
+import type OpenAI from "openai";
 import { z } from "zod/v4";
 
-import {
-  assertNotRefused,
-  FALLBACK_BETA,
-  MODEL,
-  toLlmError,
-} from "./llm.server";
+import { assertNotRefused, MODEL, toLlmError } from "./llm.server";
 
 const Stop = z.object({
   start: z.number(),
@@ -44,24 +39,21 @@ over 7 hours. Use only the facts in the plan; don't invent jobs, times or weathe
 
 /** Plain-language explanation of a day plan, for the "Approve today's plan" card. */
 export async function explainPlanWith(
-  client: Anthropic,
+  client: OpenAI,
   plan: ExplainPlanInput,
 ): Promise<string> {
   try {
-    const message = await client.beta.messages.create({
+    const completion = await client.chat.completions.create({
       model: MODEL,
-      max_tokens: 4096,
-      betas: [FALLBACK_BETA],
-      fallbacks: "default",
-      output_config: { effort: "low" }, // a short summary of data we hand over
-      system: SYSTEM,
-      messages: [{ role: "user", content: JSON.stringify(plan) }],
+      messages: [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: JSON.stringify(plan) },
+      ],
     });
+    const message = completion.choices[0]?.message;
+    if (!message) throw new Error("empty response");
     assertNotRefused(message);
-    const text = message.content
-      .flatMap((block) => (block.type === "text" ? [block.text] : []))
-      .join("")
-      .trim();
+    const text = (message.content ?? "").trim();
     if (!text) throw new Error("empty response");
     return text;
   } catch (error) {
