@@ -5,8 +5,16 @@ import type { Task } from "./types";
 import {
   addDays,
   applyWeatherRules,
+  openMeteoUrl,
   overnightRainMm,
+  planWeekDates,
+  splitOpenMeteo,
   summarizeDay,
+  todayIndex,
+  toSiteForecast,
+  weatherIcon,
+  weatherStrip,
+  type OpenMeteoSite,
   type SiteForecast,
 } from "./weather";
 
@@ -222,5 +230,104 @@ describe("summarizeDay", () => {
       "2 watering tasks skipped · 1 job moved earlier — warm",
     );
     expect(summarizeDay(tasks, 2)).toBe("No weather changes");
+  });
+});
+
+describe("week dates (Europe/Tallinn)", () => {
+  test("on a Friday the plan week is this Mon–Fri, today is index 4", () => {
+    const fri = new Date("2026-09-18T09:00:00Z");
+    expect(planWeekDates(fri)).toEqual([
+      "2026-09-14",
+      "2026-09-15",
+      "2026-09-16",
+      "2026-09-17",
+      "2026-09-18",
+    ]);
+    expect(todayIndex(fri)).toBe(4);
+  });
+
+  test("from Saturday on it plans next week, starting Monday", () => {
+    const sat = new Date("2026-09-19T09:00:00Z");
+    expect(planWeekDates(sat)[0]).toBe("2026-09-21");
+    expect(todayIndex(sat)).toBe(0);
+  });
+
+  test("uses Tallinn time, not UTC: Sunday 22:30 UTC is already Monday", () => {
+    const late = new Date("2026-09-20T22:30:00Z"); // 01:30 Monday in Tallinn
+    expect(planWeekDates(late)[0]).toBe("2026-09-21");
+    expect(todayIndex(late)).toBe(0);
+  });
+});
+
+describe("Open-Meteo mapping", () => {
+  const site: OpenMeteoSite = {
+    latitude: 59.42,
+    longitude: 24.8,
+    timezone: "Europe/Tallinn",
+    hourly: {
+      time: ["2026-09-20T22:00", "2026-09-20T23:00", "2026-09-21T00:00"],
+      precipitation: [4.5, null, 4.6],
+      temperature_2m: [11, 10.5, null],
+    },
+    daily: {
+      time: ["2026-09-21", "2026-09-22"],
+      precipitation_sum: [9.1, null],
+      temperature_2m_max: [14.8, 15],
+      weather_code: [61, 3],
+    },
+  };
+
+  test("the URL asks for every site in one request", () => {
+    const url = new URL(
+      openMeteoUrl([
+        { lat: 59.42, lng: 24.8 },
+        { lat: 56.98, lng: 24.13 },
+      ]),
+    );
+    expect(url.searchParams.get("latitude")).toBe("59.42,56.98");
+    expect(url.searchParams.get("longitude")).toBe("24.8,24.13");
+    expect(url.searchParams.get("timezone")).toBe("auto");
+  });
+
+  test("gaps in the data are dropped, not guessed", () => {
+    const f = toSiteForecast(site);
+    expect(f.hourly).toEqual([
+      { time: "2026-09-20T22:00", precipMm: 4.5, tempC: 11 },
+    ]);
+    expect(f.daily.map((d) => d.date)).toEqual(["2026-09-21"]);
+  });
+
+  test("a single-site response is wrapped; junk is rejected", () => {
+    expect(splitOpenMeteo(site)).toEqual([site]);
+    expect(splitOpenMeteo([site, site])).toHaveLength(2);
+    expect(() => splitOpenMeteo({ error: true, reason: "bad" })).toThrow();
+  });
+
+  test("WMO codes map to the three icons", () => {
+    expect(weatherIcon(0)).toBe("sun");
+    expect(weatherIcon(3)).toBe("cloud");
+    expect(weatherIcon(45)).toBe("cloud");
+    expect(weatherIcon(61)).toBe("rain");
+    expect(weatherIcon(81)).toBe("rain");
+    expect(weatherIcon(95)).toBe("rain");
+    expect(weatherIcon(73)).toBe("cloud"); // snow
+  });
+
+  test("the strip shows real temperatures and 'No forecast' where there is none", () => {
+    const strip = weatherStrip(toSiteForecast(site), WEEK, [
+      task({ status: "skipped", weatherNote: "Skipped — 9 mm rain overnight" }),
+    ]);
+    expect(strip[0]).toEqual({
+      day: "Mon",
+      icon: "rain",
+      temp: 15,
+      note: "1 watering task skipped",
+    });
+    expect(strip[1]).toEqual({
+      day: "Tue",
+      icon: "cloud",
+      temp: null,
+      note: "No forecast",
+    });
   });
 });

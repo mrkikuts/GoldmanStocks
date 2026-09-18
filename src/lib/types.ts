@@ -89,7 +89,8 @@ export type WeatherIcon = "rain" | "cloud" | "sun";
 export type DayWeather = {
   day: string;
   icon: WeatherIcon;
-  temp: number;
+  /** max °C, or null when there's no forecast for the day */
+  temp: number | null;
   note: string;
 };
 

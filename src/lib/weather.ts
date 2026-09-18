@@ -1,4 +1,4 @@
-import type { Task } from "./types";
+import type { DayWeather, Project, Task, WeatherIcon } from "./types";
 
 /**
  * Forecast for one site in the site's local time (Open-Meteo `timezone=auto`).
@@ -30,9 +30,42 @@ const MOVED_NOTE = "Moved earlier — warm spell";
 
 // ─── Dates ───────────────────────────────────────────────────────────────────
 
+/** All sites are in the Baltics; dates are the company's local calendar days. */
+export const COMPANY_TZ = "Europe/Tallinn";
+
 export function addDays(date: string, days: number): string {
   const [y = 1970, m = 1, d = 1] = date.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+/** "YYYY-MM-DD" for `now` in the company's time zone (same on server and browser). */
+export function localDate(now: Date, timeZone = COMPANY_TZ): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+/** 0 = Monday … 6 = Sunday */
+function weekday(date: string) {
+  const [y = 1970, m = 1, d = 1] = date.split("-").map(Number);
+  return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
+}
+
+/** Mon–Fri of the week being planned: this week, or next week from Saturday on. */
+export function planWeekDates(now: Date): string[] {
+  const today = localDate(now);
+  const wd = weekday(today);
+  const monday = wd >= 5 ? addDays(today, 7 - wd) : addDays(today, -wd);
+  return [0, 1, 2, 3, 4].map((i) => addDays(monday, i));
+}
+
+/** Index of today in `planWeekDates(now)` — Monday on weekends. */
+export function todayIndex(now: Date): number {
+  const wd = weekday(localDate(now));
+  return wd >= 5 ? 0 : wd;
 }
 
 // ─── Forecast readings ───────────────────────────────────────────────────────
@@ -172,4 +205,118 @@ export function summarizeDay(tasks: Task[], day: number): string {
   if (moved)
     parts.push(`${moved} ${moved === 1 ? "job" : "jobs"} moved earlier — warm`);
   return parts.join(" · ") || "No weather changes";
+}
+
+// ─── Open-Meteo ──────────────────────────────────────────────────────────────
+
+/** One site in an Open-Meteo /v1/forecast response (an array when several sites are asked for). */
+export type OpenMeteoSite = {
+  latitude: number;
+  longitude: number;
+  timezone?: string;
+  hourly: {
+    time: string[];
+    precipitation: (number | null)[];
+    temperature_2m: (number | null)[];
+  };
+  daily: {
+    time: string[];
+    precipitation_sum: (number | null)[];
+    temperature_2m_max: (number | null)[];
+    weather_code: (number | null)[];
+  };
+};
+
+type LatLng = { lat: number; lng: number };
+
+/**
+ * One request for every site. `past_days=7` keeps the whole current week (and the
+ * Sunday evening before it) in view for the overnight-rain rule.
+ */
+export function openMeteoUrl(sites: LatLng[]): string {
+  const params = new URLSearchParams({
+    latitude: sites.map((s) => s.lat).join(","),
+    longitude: sites.map((s) => s.lng).join(","),
+    hourly: "precipitation,temperature_2m",
+    daily: "precipitation_sum,temperature_2m_max,weather_code",
+    past_days: "7",
+    forecast_days: "10",
+    timezone: "auto",
+  });
+  return `https://api.open-meteo.com/v1/forecast?${params}`;
+}
+
+/** Cache key for a site: coordinates rounded to ~1 km. */
+export function siteKey(site: LatLng): string {
+  return `${site.lat.toFixed(2)},${site.lng.toFixed(2)}`;
+}
+
+/** Normalise the response to one entry per requested site (a single site isn't wrapped in an array). */
+export function splitOpenMeteo(json: unknown): OpenMeteoSite[] {
+  const sites = Array.isArray(json) ? json : [json];
+  for (const s of sites) {
+    if (!s || typeof s !== "object" || !("hourly" in s) || !("daily" in s)) {
+      throw new Error("Unexpected Open-Meteo response");
+    }
+  }
+  return sites as OpenMeteoSite[];
+}
+
+/** Map one site's response. Hours or days without data are dropped, never guessed. */
+export function toSiteForecast(site: OpenMeteoSite): SiteForecast {
+  const hourly = site.hourly.time.flatMap((time, i) => {
+    const precipMm = site.hourly.precipitation[i];
+    const tempC = site.hourly.temperature_2m[i];
+    return precipMm == null || tempC == null ? [] : [{ time, precipMm, tempC }];
+  });
+  const daily = site.daily.time.flatMap((date, i) => {
+    const precipMm = site.daily.precipitation_sum[i];
+    const tempMaxC = site.daily.temperature_2m_max[i];
+    const weatherCode = site.daily.weather_code[i];
+    return precipMm == null || tempMaxC == null || weatherCode == null
+      ? []
+      : [{ date, precipMm, tempMaxC, weatherCode }];
+  });
+  return { hourly, daily };
+}
+
+/** WMO weather code → the dashboard's three icons. */
+export function weatherIcon(code: number): WeatherIcon {
+  if (code <= 1) return "sun";
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95) {
+    return "rain";
+  }
+  return "cloud"; // overcast, fog, snow
+}
+
+// ─── Weather strip ───────────────────────────────────────────────────────────
+
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+
+/** The site the strip shows: one in the city with the most sites (Tallinn for Rootline). */
+export function primaryProject(projects: Project[]): Project | undefined {
+  const count = (city: string) =>
+    projects.filter((p) => p.city === city).length;
+  return [...projects].sort((a, b) => count(b.city) - count(a.city))[0];
+}
+
+/**
+ * The week's weather strip: the primary site's forecast, with each day's note
+ * summarising what the rules changed across all sites. Days without a forecast
+ * show no temperature rather than a made-up one.
+ */
+export function weatherStrip(
+  forecast: SiteForecast | undefined,
+  weekDates: string[],
+  adjustedTasks: Task[],
+): DayWeather[] {
+  return weekDates.map((date, i) => {
+    const today = forecast?.daily.find((d) => d.date === date);
+    return {
+      day: DAY_LABELS[i] ?? date,
+      icon: today ? weatherIcon(today.weatherCode) : "cloud",
+      temp: today ? Math.round(today.tempMaxC) : null,
+      note: today ? summarizeDay(adjustedTasks, i) : "No forecast",
+    };
+  });
 }
