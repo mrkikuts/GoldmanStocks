@@ -4,6 +4,7 @@ import {
   completeTask as completeTaskImpl,
   createPhotoUploadUrl as createPhotoUploadUrlImpl,
   CompleteTaskInput,
+  PHOTO_BUCKET,
   PhotoUploadInput,
 } from "@/lib/server/photos";
 
@@ -17,12 +18,19 @@ import {
  * would put it in the client's module graph.
  */
 
-/** Step 1: a one-time signed URL the worker's phone uploads the photo straight to. */
+/**
+ * Step 1: a one-time signed URL the worker's phone uploads the photo straight to.
+ *
+ * The bucket name comes back with it. The client needs it to address the upload, and any module
+ * inside a `server/` directory is denied in the browser — so the server hands the name over
+ * rather than the caller importing the constant.
+ */
 export const createPhotoUploadUrl = createServerFn({ method: "POST" })
   .inputValidator((input: PhotoUploadInput) => PhotoUploadInput.parse(input))
   .handler(async ({ data }) => {
     const { getAdminClient } = await import("@/lib/supabase/server");
-    return createPhotoUploadUrlImpl(getAdminClient(), data);
+    const upload = await createPhotoUploadUrlImpl(getAdminClient(), data);
+    return { ...upload, bucket: PHOTO_BUCKET };
   });
 
 /** Step 3: record the proof and mark the task done. Rejects a photo that never arrived. */

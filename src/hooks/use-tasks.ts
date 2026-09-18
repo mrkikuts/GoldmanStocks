@@ -10,7 +10,6 @@ import {
   type TaskPatch,
 } from "@/lib/api/tasks";
 import { completeTask, createPhotoUploadUrl } from "@/lib/photos.functions";
-import { PHOTO_BUCKET } from "@/lib/server/photos";
 import { supabase } from "@/lib/supabase/client";
 import type { Task } from "@/lib/types";
 
@@ -83,7 +82,7 @@ export function useTaskActions() {
         data: { taskId, contentType: file.type as "image/jpeg" },
       });
       const { error } = await supabase.storage
-        .from(PHOTO_BUCKET)
+        .from(upload.bucket)
         .uploadToSignedUrl(upload.path, upload.token, file);
       if (error) throw error;
 
