@@ -2,11 +2,12 @@
 
 ## Where the schema lives
 
-The 10-table schema was applied **directly to the project** (dashboard SQL editor), not through
-this folder. So there is no `0001_init.sql` here — an init migration in the repo that didn't match
-the live database would be worse than none, since applying it would clobber the real schema.
+`migrations/0001_init.sql` is the schema, written by Track B and applied to the project through
+the dashboard SQL editor. It is the authoritative record — verified against the live database
+(`workers.app_role`, `tasks.start`/`duration`, `weather_cache` keyed by `key` with a `jsonb`
+payload).
 
-The live schema is mirrored in TypeScript at **`src/lib/supabase/types.ts`**, which is the
+The same schema is mirrored in TypeScript at **`src/lib/supabase/types.ts`**, which is the
 practical contract for application code.
 
 ### Regenerating types after a schema change
@@ -23,11 +24,11 @@ curl -s "$VITE_SUPABASE_URL/rest/v1/" \
 
 Every column, type and nullability flag is in `definitions`.
 
-## Migrations here
+## Applying migrations
 
-Files in `migrations/` are changes made *after* that initial schema. Apply them by pasting into
-the dashboard SQL editor — the pooler doesn't recognise this project's tenant and the direct host
-is IPv6-only with no route from this machine, so `psql` can't reach it.
+Paste them into the dashboard SQL editor. The pooler doesn't recognise this project's tenant and
+the direct host is IPv6-only with no route from this machine, so `psql` can't reach the database
+and API keys cannot execute DDL.
 
 - `0002_authenticated_access.sql` — grants the `authenticated` role access to the demo tables.
   Required: RLS is on but no policy admitted signed-in users, so every query returned zero rows.

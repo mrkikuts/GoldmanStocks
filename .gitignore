@@ -1,18 +1,19 @@
-# dependencies
-node_modules
-
-# env — never commit real keys
+# Secrets — never commit real keys (.env.example holds the variable names only)
 .env
 .env.*
 !.env.example
 
-# build output
+# Dependencies
+node_modules
+
+# Build output
 dist
 .output
 .nitro
 .vinxi
 .tanstack
+.wrangler
 
-# misc
+# OS / editor
 .DS_Store
 *.log

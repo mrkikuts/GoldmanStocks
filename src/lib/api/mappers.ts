@@ -59,6 +59,9 @@ export function toProject(row: Row<"projects">, clientName: string): Project {
     client: clientName,
     city: row.city,
     address: row.address,
+    // Track B's weather lookup and inter-site route ordering read these.
+    lat: Number(row.lat),
+    lng: Number(row.lng),
     zones: row.zones,
     leadWorkerId: row.lead_worker_id ?? "",
     workerIds: row.worker_ids,
