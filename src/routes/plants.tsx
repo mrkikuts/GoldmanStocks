@@ -1,39 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  CalendarDays,
-  Camera,
-  ChevronUp,
-  MapPin,
-  Pencil,
-  Plus,
-  Search,
-} from "lucide-react";
+import { Camera, MapPin, Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { PlantDialog } from "@/components/forms/PlantDialog";
-import { PlantCalendar } from "@/components/PlantCalendar";
-import { PlantPhoto } from "@/components/PlantPhoto";
-import { StatusDot } from "@/components/StatusDot";
+import {
+  PlantCalendarDialog,
+  PlantTableSection,
+} from "@/components/PlantTable";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { listPlants } from "@/lib/api/plants";
 import { listProjects } from "@/lib/api/projects";
 import { listWorkers } from "@/lib/api/workers";
@@ -166,134 +143,24 @@ function Plants() {
             return name ? [{ id, name }] : [];
           });
           return (
-            <section key={project.id} className="space-y-2">
-              <Card className="relative z-20 shadow-card">
-                <CardHeader className="px-4 py-3">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <CardTitle className="text-base">
-                        {project.name}
-                      </CardTitle>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {rows.length} items · crew{" "}
-                        {crew.map((w) => w.name.split(" ")[0]).join(", ")}
-                      </p>
-                    </div>
-                    <Link
-                      to="/projects/$projectId"
-                      params={{ projectId: project.id }}
-                      className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
-                    >
-                      <MapPin className="size-4" /> View map
-                    </Link>
-                  </div>
-                </CardHeader>
-              </Card>
-
-              <Card className="relative z-10 overflow-hidden shadow-card">
-                <CardContent className="overflow-x-auto p-0">
-                  <Table className="min-w-[980px]">
-                    <TableHeader>
-                      <TableRow className="bg-muted/45 hover:bg-muted/45">
-                        <TableHead className="sticky left-0 z-20 w-28 border-r bg-muted px-4">
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase">
-                            ID <ChevronUp className="size-3" />
-                          </span>
-                        </TableHead>
-                        <TableHead className="min-w-48 text-[10px] font-semibold uppercase">
-                          Plant / area
-                        </TableHead>
-                        <TableHead className="text-[10px] font-semibold uppercase">
-                          Type
-                        </TableHead>
-                        <TableHead className="min-w-40 text-[10px] font-semibold uppercase">
-                          Zone
-                        </TableHead>
-                        <TableHead className="text-[10px] font-semibold uppercase">
-                          Status
-                        </TableHead>
-                        <TableHead className="text-[10px] font-semibold uppercase">
-                          Last care
-                        </TableHead>
-                        <TableHead className="min-w-40 text-[10px] font-semibold uppercase">
-                          Next task
-                        </TableHead>
-                        <TableHead className="w-24 text-right text-[10px] font-semibold uppercase">
-                          Actions
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rows.map((p) => (
-                        <TableRow
-                          key={p.id}
-                          className="group h-16 transition-colors hover:bg-data-violet/5"
-                        >
-                          <TableCell className="sticky left-0 z-10 border-r bg-card px-4 font-mono text-xs font-medium text-muted-foreground group-hover:bg-[color-mix(in_oklab,var(--data-violet)_5%,var(--card))]">
-                            {p.id}
-                          </TableCell>
-                          <TableCell>
-                            <p className="font-medium">{p.common}</p>
-                            <p className="text-xs italic text-muted-foreground">
-                              {p.species}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary" className="font-normal">
-                              {p.kind}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm">{p.site}</TableCell>
-                          <TableCell>
-                            <StatusDot status={p.status} />
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {p.lastCare}
-                          </TableCell>
-                          <TableCell>
-                            <p className="text-sm font-medium">{p.nextTask}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {p.nextCare}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setOpenPlant(p)}
-                                aria-label={`Open care calendar for ${p.common}`}
-                                title="Open care calendar"
-                              >
-                                <CalendarDays className="size-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setEditing(p)}
-                                aria-label={`Edit ${p.common}`}
-                                title="Edit"
-                              >
-                                <Pencil className="size-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-
-              <Card className="relative z-0 shadow-card">
-                <CardContent className="flex items-center justify-between px-4 py-3 text-xs text-muted-foreground">
-                  <span>
-                    Showing {rows.length} of {rows.length} items
-                  </span>
-                  <span>{project.name}</span>
-                </CardContent>
-              </Card>
-            </section>
+            <PlantTableSection
+              key={project.id}
+              title={project.name}
+              crew={crew.map((w) => w.name)}
+              rows={rows}
+              footerLabel={project.name}
+              action={
+                <Link
+                  to="/projects/$projectId"
+                  params={{ projectId: project.id }}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                >
+                  <MapPin className="size-4" /> View map
+                </Link>
+              }
+              onOpenCalendar={setOpenPlant}
+              onEdit={setEditing}
+            />
           );
         })}
         {groups.length === 0 ? (
@@ -312,30 +179,10 @@ function Plants() {
         onOpenChange={(open) => (open ? null : setEditing(undefined))}
       />
 
-      <Dialog
-        open={Boolean(openPlant)}
-        onOpenChange={(o) => (o ? null : setOpenPlant(null))}
-      >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-          {openPlant ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>
-                  {openPlant.common}{" "}
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {openPlant.id}
-                  </span>
-                </DialogTitle>
-                <DialogDescription>
-                  {openPlant.species} · {openPlant.client} · {openPlant.site}
-                </DialogDescription>
-              </DialogHeader>
-              <PlantPhoto plantId={openPlant.id} />
-              <PlantCalendar plant={openPlant} />
-            </>
-          ) : null}
-        </DialogContent>
-      </Dialog>
+      <PlantCalendarDialog
+        plant={openPlant}
+        onClose={() => setOpenPlant(null)}
+      />
     </AppShell>
   );
 }

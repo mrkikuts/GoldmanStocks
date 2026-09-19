@@ -4,20 +4,16 @@ import { useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { PlantDialog } from "@/components/forms/PlantDialog";
+import {
+  PlantCalendarDialog,
+  PlantTableSection,
+} from "@/components/PlantTable";
 import { SiteDialog } from "@/components/forms/SiteDialog";
 import { SiteMap } from "@/components/map";
 import { StatusDot } from "@/components/StatusDot";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { listClients } from "@/lib/api/clients";
 import { projectPlants } from "@/lib/api/plants";
 import { getProject, listProjects, projectWorkers } from "@/lib/api/projects";
@@ -25,6 +21,7 @@ import { listWorkers } from "@/lib/api/workers";
 import { projectTasks } from "@/lib/api/tasks";
 import { weekDays } from "@/lib/labels";
 import { inWeek } from "@/lib/task-schedule";
+import type { Plant } from "@/lib/types";
 import { planWeekDates } from "@/lib/weather";
 
 export const Route = createFileRoute("/projects_/$projectId")({
@@ -86,6 +83,8 @@ function ProjectDetail() {
   } = Route.useLoaderData();
   const [editingSite, setEditingSite] = useState(false);
   const [addingPlant, setAddingPlant] = useState(false);
+  const [editingPlant, setEditingPlant] = useState<Plant | null>(null);
+  const [openPlant, setOpenPlant] = useState<Plant | null>(null);
   // "This week" below means exactly that — a job dated in a future month is not a visit yet.
   const weekDates = useMemo(() => planWeekDates(new Date()), []);
   const tasks = useMemo(
@@ -223,55 +222,25 @@ function ProjectDetail() {
         </div>
       </div>
 
-      <Card className="mt-4 shadow-card">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            Plants & areas in this project
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto p-0 pb-4">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Plant / area</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Zone</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Next task</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {plants.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {p.id}
-                  </TableCell>
-                  <TableCell>
-                    <p className="font-medium">{p.common}</p>
-                    <p className="text-xs italic text-muted-foreground">
-                      {p.species}
-                    </p>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{p.kind}</Badge>
-                  </TableCell>
-                  <TableCell className="text-sm">{p.site}</TableCell>
-                  <TableCell>
-                    <StatusDot status={p.status} />
-                  </TableCell>
-                  <TableCell>
-                    <p className="text-sm">{p.nextTask}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {p.nextCare}
-                    </p>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div className="mt-4">
+        <PlantTableSection
+          title="Plants & areas in this project"
+          crew={crew.map((w) => w.name)}
+          rows={plants}
+          footerLabel={project.name}
+          action={
+            <button
+              type="button"
+              onClick={() => setAddingPlant(true)}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+            >
+              <Plus className="size-4" /> Register plant
+            </button>
+          }
+          onOpenCalendar={setOpenPlant}
+          onEdit={setEditingPlant}
+        />
+      </div>
       <SiteDialog
         site={project}
         clients={clients}
@@ -284,6 +253,16 @@ function ProjectDetail() {
         defaultProjectId={project.id}
         open={addingPlant}
         onOpenChange={setAddingPlant}
+      />
+      <PlantDialog
+        plant={editingPlant ?? undefined}
+        projects={projects}
+        open={Boolean(editingPlant)}
+        onOpenChange={(open) => (open ? null : setEditingPlant(null))}
+      />
+      <PlantCalendarDialog
+        plant={openPlant}
+        onClose={() => setOpenPlant(null)}
       />
     </AppShell>
   );
