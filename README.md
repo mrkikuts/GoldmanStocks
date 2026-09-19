@@ -23,3 +23,8 @@ is `src/routes/__root.tsx`.
 ## Deploying
 
 See [docs/deploy-vercel.md](docs/deploy-vercel.md) for hosting on Vercel.
+
+## Picking up the work
+
+Start with [docs/HANDOFF.md](docs/HANDOFF.md) (what's built and how) and
+[docs/TODO.md](docs/TODO.md) (what's left, in order).
