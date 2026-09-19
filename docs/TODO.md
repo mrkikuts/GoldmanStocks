@@ -99,41 +99,27 @@ Two limits worth knowing before showing it to anyone, both recorded in HANDOFF.m
 - `clients.hours_this_month` on `/clients` is a static seeded number and does not come from this
   report, so the two will not agree
 
-## 5. Apply migration 0004 — task dates (5 min)
+## 5. ~~Apply migration 0004 — task dates~~ — done
 
-The schedule's **Month** view needs `tasks.date`. The code already ships and degrades safely: every
-write that carries a date retries without it when PostgREST answers `PGRST204`
-(`src/lib/api/tasks.ts`, the same trick `savePlant` used before 0003 landed). So until this is
-applied, the month grid renders and you can browse it, but **a task moved to a future date silently
-stays on its weekday** — the date is dropped on save.
+Applied 19 Sep 2026 via the Supabase Management API (see
+[supabase/README.md](../supabase/README.md) → Applying migrations). `tasks.date` exists as nullable
+`date` with the `tasks_date_idx` index, and PostgREST serves it —
+`GET /rest/v1/tasks?select=id,date` returns 200 where it answered
+`42703: column tasks.date does not exist`.
 
-Apply it the way 0003 was applied — see [supabase/README.md](../supabase/README.md) →
-Applying migrations:
+Verified by round-tripping a one-off date onto a task and querying it back through a month window,
+then reverting. Existing tasks were **not** backfilled, deliberately: a null date means "every week
+on `day`", which is what the day and week views and the worker app read.
 
-```sql
-alter table tasks add column if not exists date date;
-create index if not exists tasks_date_idx on tasks (date);
-```
+## 6. ~~Deploy to Vercel~~ — done
 
-**Verify:** `GET /rest/v1/tasks?select=id,date` returns 200 rather than
-`42703: column tasks.date does not exist`. Then in the app: **Schedule → Month**, click **+** on a
-day in a future month, add a job, and step away and back — it should still be there. If the column
-reads back missing after a schema change, run `notify pgrst, 'reload schema';`.
+Live at **https://goldman-stocks.vercel.app**, deploying from `main` on push. Confirmed serving the
+current build: the worker app shows the seven-day week and `/clients/c1/report?month=2026-09`
+renders the September photo row.
 
-Existing tasks are **not** backfilled, deliberately: a null date means "every week on `day`", which
-is what the day and week views and the worker app have always read.
-
-## 6. Deploy to Vercel (15 min)
-
-Follow [deploy-vercel.md](deploy-vercel.md): import the repo, set the env vars
-(`VITE_SUPABASE_*` are needed **at build time**) and deploy. `vercel.json` is already set up.
-
-**Verify:**
-- every page loads on the Vercel URL
-- the map shows tiles
-- "Approve today's plan" shows the AI explanation
-- the logo loads
-- `/clients/c1/report` renders and prints cleanly
+Still worth a manual pass before showing it to anyone: map tiles, the logo, and that
+"Approve today's plan" returns its AI explanation — those need the server-side keys to be set in
+Vercel, not just the `VITE_` ones.
 
 ## 7. Security clean-up — now urgent (20 min)
 
@@ -154,6 +140,24 @@ transcripts. Rotate in this order:
 `kristers-local@rootline.demo`. Delete it if nobody uses it.
 
 Nothing in the codebase requires pasting a secret to anyone: `.env` is read directly by `bun`.
+
+## 7a. Demo data deliberately left in the shared database
+
+Added 19 Sep 2026 so the monthly report has something to show. **Not test residue — remove it only
+when you mean to.**
+
+| What | Detail |
+| --- | --- |
+| Task `t13` "Weekend watering round" | Saturday (`day 5`), 09:00, 2 h, `w1` Mart Kivi, Ülemiste (`p1`), plant `PL-0142`. Now `status: done` |
+| One `task_photos` row | `tasks/t13/…jpg`, a small placeholder JPEG, taken `2026-09-19T09:20+03:00` with GPS |
+| One `care_events` row | written by `completeTask`; `PL-0142.last_care` moved to 2026-09-19 |
+
+To remove: delete the `task_photos` row and its storage object, delete the `care_events` row for
+`t13`, delete task `t13`, and restore `PL-0142.last_care`.
+
+`t13` also exists in `src/lib/rootline-data.ts`, so a future `bun run seed` recreates the task
+(without the photo). That is intentional — the seed had no weekend work at all, which made the
+weekend columns read as broken.
 
 ## 8. Nice to have
 

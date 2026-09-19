@@ -2,6 +2,7 @@
 import { describe, expect, test } from "bun:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { monthRangeUtc } from "@/lib/month";
 import {
   ClientReportInput,
   clientReport,
@@ -73,10 +74,177 @@ describe("signedUrlMap", () => {
   });
 });
 
+// ─── Weekend work must always reach the report ───────────────────────────────
+//
+// The report filters photos on the calendar month and nothing else. That is deliberate: a job
+// photographed on a Saturday is as much proof of work as one taken on a Tuesday, and a client
+// paying for weekend cover has to see it. These tests exist so a weekday filter can never be
+// introduced without something going red.
+
+type Row = Record<string, unknown>;
+
+/** Records every filter applied, so a test can assert what the query narrowed on. */
+type Recorded = { table: string; op: string; args: unknown[] }[];
+
+/**
+ * The smallest stub of the PostgREST builder that `clientReport` actually uses:
+ * .select / .eq / .in / .gte / .lt / .order, awaited for { data, error }, plus .maybeSingle().
+ */
+function stubDb(tables: Record<string, Row[]>, recorded: Recorded) {
+  const builder = (table: string) => {
+    const chain: Record<string, unknown> = {
+      select: () => chain,
+      order: () => chain,
+      maybeSingle: async () => ({
+        data: tables[table]?.[0] ?? null,
+        error: null,
+      }),
+      then: (resolve: (v: { data: Row[]; error: null }) => unknown) =>
+        resolve({ data: tables[table] ?? [], error: null }),
+    };
+    for (const op of ["eq", "in", "gte", "lt"]) {
+      chain[op] = (...args: unknown[]) => {
+        recorded.push({ table, op, args });
+        return chain;
+      };
+    }
+    return chain;
+  };
+
+  return {
+    from: (table: string) => builder(table),
+    storage: {
+      from: () => ({
+        createSignedUrls: async (paths: string[]) => ({
+          data: paths.map((path) => ({
+            path,
+            signedUrl: `https://signed/${path}`,
+            error: null,
+          })),
+          error: null,
+        }),
+      }),
+    },
+  } as unknown as SupabaseClient;
+}
+
+const photoRow = (id: string, takenAt: string) => ({
+  id,
+  task_id: "t1",
+  storage_path: `tasks/t1/${id}.jpg`,
+  taken_at: takenAt,
+  lat: 59.4196,
+  lng: 24.8048,
+});
+
+/** September 2026: the 19th is a Saturday and the 20th a Sunday. */
+function septemberTables(photos: Row[]) {
+  return {
+    clients: [
+      { id: "c1", name: "Ülemiste", city: "Tallinn", contact: "Anu Saar" },
+    ],
+    projects: [{ id: "p1", name: "Ülemiste Business Park" }],
+    tasks: [
+      {
+        id: "t1",
+        title: "Weekend watering",
+        kind: "Watering",
+        site: "North courtyard",
+        plant_id: null,
+        worker_id: "w1",
+        project_id: "p1",
+      },
+    ],
+    plants: [],
+    workers: [{ id: "w1", name: "Mart Kivi" }],
+    task_photos: photos,
+  };
+}
+
+describe("weekend photos always reach the report", () => {
+  test("a Saturday and a Sunday photo both appear, labelled as such", async () => {
+    const recorded: Recorded = [];
+    const db = stubDb(
+      septemberTables([
+        photoRow("sat", "2026-09-19T08:15:00+03:00"),
+        photoRow("sun", "2026-09-20T17:40:00+03:00"),
+      ]),
+      recorded,
+    );
+
+    const report = await clientReport(db, { clientId: "c1", month: "2026-09" });
+    const labels = report!.rows.map((r) => r.dayLabel);
+    expect(labels).toContain("Sat 19 Sep");
+    expect(labels).toContain("Sun 20 Sep");
+    expect(report!.rows).toHaveLength(2);
+  });
+
+  test("weekday photos still appear — the rule is 'the whole month', not 'weekends only'", async () => {
+    const recorded: Recorded = [];
+    const db = stubDb(
+      septemberTables([
+        photoRow("tue", "2026-09-15T09:00:00+03:00"),
+        photoRow("sat", "2026-09-19T08:15:00+03:00"),
+      ]),
+      recorded,
+    );
+
+    const report = await clientReport(db, { clientId: "c1", month: "2026-09" });
+    expect(report!.rows.map((r) => r.dayLabel)).toEqual([
+      "Tue 15 Sep",
+      "Sat 19 Sep",
+    ]);
+  });
+
+  test("the photo query narrows on the month and the task ids — never on a weekday", async () => {
+    const recorded: Recorded = [];
+    const db = stubDb(
+      septemberTables([photoRow("sat", "2026-09-19T08:15:00+03:00")]),
+      recorded,
+    );
+    await clientReport(db, { clientId: "c1", month: "2026-09" });
+
+    const onPhotos = recorded.filter((r) => r.table === "task_photos");
+    expect(onPhotos.map((r) => r.op).sort()).toEqual(["gte", "in", "lt"]);
+    // The month bounds, in Europe/Tallinn — not UTC midnight.
+    expect(onPhotos.find((r) => r.op === "gte")!.args).toEqual([
+      "taken_at",
+      "2026-08-31T21:00:00.000Z",
+    ]);
+    expect(onPhotos.find((r) => r.op === "lt")!.args).toEqual([
+      "taken_at",
+      "2026-09-30T21:00:00.000Z",
+    ]);
+    // Nothing anywhere in the report's queries may filter on a weekday column.
+    const columns = recorded
+      .flatMap((r) => r.args)
+      .filter((a) => typeof a === "string");
+    expect(columns).not.toContain("day");
+    expect(columns).not.toContain("date");
+  });
+
+  test("the month boundary still bites: the last Sunday is in, the next day is not", () => {
+    const { startUtc, endUtc } = monthRangeUtc("2026-09");
+    const inside = (iso: string) => {
+      const t = new Date(iso).toISOString();
+      return t >= startUtc && t < endUtc;
+    };
+    expect(inside("2026-09-05T06:00:00+03:00")).toBe(true); // first Saturday
+    expect(inside("2026-09-27T23:30:00+03:00")).toBe(true); // last Sunday, late
+    expect(inside("2026-10-03T09:00:00+03:00")).toBe(false); // next month's Saturday
+    expect(inside("2026-08-29T09:00:00+03:00")).toBe(false); // previous month's Saturday
+  });
+});
+
 describe("the date column", () => {
   test("reads as a day a person recognises", () => {
     expect(dayLabel("2026-09-07")).toBe("Mon 07 Sep");
     expect(dayLabel("2026-01-01")).toBe("Thu 01 Jan");
+  });
+
+  test("names the weekend days, which the report must show like any other", () => {
+    expect(dayLabel("2026-09-19")).toBe("Sat 19 Sep");
+    expect(dayLabel("2026-09-20")).toBe("Sun 20 Sep");
   });
 
   test("is not shifted by the host's time zone", () => {

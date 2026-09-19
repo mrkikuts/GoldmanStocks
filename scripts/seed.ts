@@ -187,6 +187,9 @@ async function seed() {
           worker_id: t.workerId,
           title: t.title,
           site: t.site,
+          // Dropped here until now, which is why every task arrived with a null plant and the
+          // client report's "Plant" column was blank for every row.
+          plant_id: t.plantId ?? null,
           day: t.day,
           start: t.start,
           duration: t.duration,

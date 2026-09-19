@@ -599,6 +599,22 @@ export const tasks: Task[] = [
     status: "planned",
   },
   {
+    // Weekend cover. Grounds still need watering on a Saturday, and a week that stopped on
+    // Friday left the worker app with nothing to show and no way to photograph a job.
+    id: "t13",
+    title: "Weekend watering round",
+    projectId: "p1",
+    client: "Ülemiste Business Park",
+    site: "North courtyard",
+    plantId: "PL-0142",
+    workerId: "w1",
+    day: 5,
+    start: 9,
+    duration: 2,
+    kind: "Watering",
+    status: "planned",
+  },
+  {
     id: "t12",
     title: "Lilac watering + mulch",
     projectId: "p5",
