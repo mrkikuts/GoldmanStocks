@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   CloudRain,
@@ -32,8 +32,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate, partOfDay, useWeekPlan } from "@/hooks/use-week-plan";
 import { findOpportunities } from "@/lib/outreach";
 import type { DayPlan } from "@/lib/planner";
-import { useClients } from "@/hooks/use-data";
-import { draftOffers } from "@/lib/outreach.functions";
+import { dataKeys, useClients } from "@/hooks/use-data";
+import { decideOffer, draftOffers, listOffers } from "@/lib/outreach.functions";
 import { explainPlan, type ExplainPlanInput } from "@/lib/plan.functions";
 import { useTaskActions } from "@/hooks/use-tasks";
 import type { Offer, OfferStatus, Plant, Task, Worker } from "@/lib/types";
@@ -63,6 +63,7 @@ export const Route = createFileRoute("/")({
 });
 
 const weatherIcon = { rain: CloudRain, cloud: Cloud, sun: Sun } as const;
+const NO_OFFERS: Offer[] = [];
 
 /** Next care date as YYYY-MM-DD, or null when none is planned. */
 function nextCareDate(plant: Plant) {
@@ -161,22 +162,54 @@ function Dashboard() {
     toast.success(`Today's plan approved for ${onShift.length} workers`);
   }
 
-  // ─── Repeat-work offers ──────────────────────────────────────────────────
-  const [offers, setOffers] = useState<Offer[]>([]);
+  // ─── Repeat-work offers (saved in the offers table) ─────────────────────
+  const queryClient = useQueryClient();
+  const recentOffers = useQuery({
+    queryKey: dataKeys.offers,
+    queryFn: () => listOffers(),
+  });
+  const recent = recentOffers.data ?? NO_OFFERS;
+  const pending = recent.filter((o) => o.status === "draft");
+  // Sites with a waiting or recent (30-day) offer aren't offered again yet.
+  const undrafted = opportunities.filter(
+    (o) => !recent.some((r) => r.projectId === o.projectId),
+  );
+  // The dialog keeps showing offers decided while it's open, with their outcome.
+  const [shown, setShown] = useState<Offer[]>([]);
   const [decisions, setDecisions] = useState<Record<string, OfferStatus>>({});
   const [offersOpen, setOffersOpen] = useState(false);
+  function openOffers(list: Offer[]) {
+    setShown(list);
+    setDecisions({});
+    setOffersOpen(true);
+  }
+
   const drafting = useMutation({
-    mutationFn: () => draftOffers({ data: { opportunities } }),
-    onSuccess: (drafts) => {
-      setOffers(drafts);
-      setDecisions({});
-      setOffersOpen(true);
+    mutationFn: () => draftOffers({ data: { opportunities: undrafted } }),
+    onSuccess: async ({ drafted }) => {
+      const { data } = await recentOffers.refetch();
+      toast.success(
+        `${drafted} new ${drafted === 1 ? "draft" : "drafts"} saved — nothing is sent until you do`,
+      );
+      openOffers((data ?? []).filter((o) => o.status === "draft"));
     },
     onError: (error) => toast.error(error.message),
   });
 
+  const deciding = useMutation({
+    mutationFn: ({ offer, status }: { offer: Offer; status: OfferStatus }) =>
+      decideOffer({
+        data: { id: offer.id, status: status as "approved" | "dismissed" },
+      }),
+    onError: (error, { offer }) => {
+      setDecisions(({ [offer.id]: _, ...rest }) => rest);
+      toast.error(error.message);
+    },
+  });
+
   async function decide(offer: Offer, status: OfferStatus) {
     setDecisions((d) => ({ ...d, [offer.id]: status }));
+    deciding.mutate({ offer, status });
     if (status !== "approved") return;
     try {
       await navigator.clipboard.writeText(`${offer.subject}\n\n${offer.body}`);
@@ -358,20 +391,33 @@ function Dashboard() {
                   </div>
                 ))
               )}
-              <Button
-                variant="secondary"
-                className="w-full"
-                disabled={!opportunities.length || drafting.isPending}
-                onClick={() => drafting.mutate()}
-              >
-                {drafting.isPending ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" /> Drafting offers…
-                  </>
-                ) : (
-                  "Draft offers"
-                )}
-              </Button>
+              {undrafted.length > 0 ? (
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  disabled={drafting.isPending}
+                  onClick={() => drafting.mutate()}
+                >
+                  {drafting.isPending ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" /> Drafting
+                      offers…
+                    </>
+                  ) : (
+                    `Draft ${undrafted.length === 1 ? "an offer" : `${undrafted.length} offers`}`
+                  )}
+                </Button>
+              ) : null}
+              {pending.length > 0 ? (
+                <Button
+                  variant={undrafted.length > 0 ? "ghost" : "secondary"}
+                  className="w-full"
+                  onClick={() => openOffers(pending)}
+                >
+                  Review {pending.length}{" "}
+                  {pending.length === 1 ? "draft" : "drafts"} waiting
+                </Button>
+              ) : null}
             </CardContent>
           </Card>
 
@@ -438,10 +484,17 @@ function Dashboard() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={offersOpen} onOpenChange={setOffersOpen}>
+      <Dialog
+        open={offersOpen}
+        onOpenChange={(open) => {
+          setOffersOpen(open);
+          if (!open)
+            void queryClient.invalidateQueries({ queryKey: dataKeys.offers });
+        }}
+      >
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Draft offers</DialogTitle>
+            <DialogTitle>Offers to review</DialogTitle>
             <DialogDescription>
               Drafted by AI from each client's plants and this week's weather.
               Nothing is sent — approve the ones you want and send them from
@@ -449,7 +502,12 @@ function Dashboard() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {offers.map((offer) => {
+            {shown.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No drafts waiting.
+              </p>
+            ) : null}
+            {shown.map((offer) => {
               const decision = decisions[offer.id] ?? offer.status;
               const client = clients.find((c) => c.id === offer.clientId);
               return (
