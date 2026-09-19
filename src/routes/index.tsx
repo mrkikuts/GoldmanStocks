@@ -376,7 +376,7 @@ function Dashboard() {
             </Badge>
           ) : null}
         </CardHeader>
-        <CardContent className="grid gap-2 px-5 pb-5 sm:grid-cols-5">
+        <CardContent className="grid gap-2 px-5 pb-5 sm:grid-cols-7">
           {weather.isPending ? (
             weekDates.map((d) => (
               <Skeleton key={d} className="h-[104px] rounded-md" />

@@ -166,7 +166,8 @@ export function trimToPlanWindow(week: WeekWeather, now: Date): WeekWeather {
   const dates = planWeekDates(now);
   const from = addDays(dates[0]!, -1);
   const nextWeek = addDays(localDate(now), 7);
-  const to = dates[4]! > nextWeek ? dates[4]! : nextWeek;
+  const lastDay = dates.at(-1)!;
+  const to = lastDay > nextWeek ? lastDay : nextWeek;
   const forecasts: Record<string, SiteForecast> = {};
   for (const [id, f] of Object.entries(week.forecasts)) {
     forecasts[id] = trimForecast(f, from, to);

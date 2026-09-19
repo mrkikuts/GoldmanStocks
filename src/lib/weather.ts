@@ -1,3 +1,4 @@
+import { weekDays } from "./labels";
 import type { DayWeather, Project, Task, WeatherIcon } from "./types";
 
 /**
@@ -65,18 +66,21 @@ function weekday(date: string) {
   return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
 }
 
-/** Mon–Fri of the week being planned: this week, or next week from Saturday on. */
+/**
+ * Mon–Sun of the week being planned — the week `now` is actually in.
+ *
+ * Weekends are ordinary days: grounds still need watering on a Saturday, and a week that stopped
+ * on Friday left the worker app with nothing to show for two days out of seven.
+ */
 export function planWeekDates(now: Date): string[] {
   const today = localDate(now);
-  const wd = weekday(today);
-  const monday = wd >= 5 ? addDays(today, 7 - wd) : addDays(today, -wd);
-  return [0, 1, 2, 3, 4].map((i) => addDays(monday, i));
+  const monday = addDays(today, -weekday(today));
+  return [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(monday, i));
 }
 
-/** Index of today in `planWeekDates(now)` — Monday on weekends. */
+/** Index of today in `planWeekDates(now)`. */
 export function todayIndex(now: Date): number {
-  const wd = weekday(localDate(now));
-  return wd >= 5 ? 0 : wd;
+  return weekday(localDate(now));
 }
 
 // ─── Forecast readings ───────────────────────────────────────────────────────
@@ -318,8 +322,6 @@ export function weatherIcon(code: number): WeatherIcon {
 
 // ─── Weather strip ───────────────────────────────────────────────────────────
 
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-
 /** The site the strip shows: one in the city with the most sites (Tallinn for Rootline). */
 export function primaryProject(projects: Project[]): Project | undefined {
   const count = (city: string) =>
@@ -340,7 +342,7 @@ export function weatherStrip(
   return weekDates.map((date, i) => {
     const today = forecast?.daily.find((d) => d.date === date);
     return {
-      day: DAY_LABELS[i] ?? date,
+      day: weekDays[i] ?? date,
       icon: today ? weatherIcon(today.weatherCode) : "cloud",
       temp: today ? Math.round(today.tempMaxC) : null,
       note: today ? summarizeDay(adjustedTasks, i) : "No forecast",

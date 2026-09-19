@@ -5,6 +5,7 @@ import type { Task } from "./types";
 import {
   addDays,
   applyWeatherRules,
+  localDate,
   openMeteoUrl,
   overnightRainMm,
   planWeekDates,
@@ -233,7 +234,7 @@ describe("summarizeDay", () => {
 });
 
 describe("week dates (Europe/Tallinn)", () => {
-  test("on a Friday the plan week is this Mon–Fri, today is index 4", () => {
+  test("a Friday sits at index 4 of a Mon–Sun week", () => {
     const fri = new Date("2026-09-18T09:00:00Z");
     expect(planWeekDates(fri)).toEqual([
       "2026-09-14",
@@ -241,20 +242,44 @@ describe("week dates (Europe/Tallinn)", () => {
       "2026-09-16",
       "2026-09-17",
       "2026-09-18",
+      "2026-09-19",
+      "2026-09-20",
     ]);
     expect(todayIndex(fri)).toBe(4);
   });
 
-  test("from Saturday on it plans next week, starting Monday", () => {
+  test("Saturday is part of the week it is in, not the start of the next one", () => {
+    // The week used to stop on Friday and roll forward here, which left the worker app
+    // with nothing to show on a weekend and no way to photograph a job.
     const sat = new Date("2026-09-19T09:00:00Z");
-    expect(planWeekDates(sat)[0]).toBe("2026-09-21");
-    expect(todayIndex(sat)).toBe(0);
+    expect(planWeekDates(sat)[0]).toBe("2026-09-14");
+    expect(todayIndex(sat)).toBe(5);
+  });
+
+  test("Sunday is the last day of its own week", () => {
+    const sun = new Date("2026-09-20T09:00:00Z");
+    expect(planWeekDates(sun)[0]).toBe("2026-09-14");
+    expect(planWeekDates(sun).at(-1)).toBe("2026-09-20");
+    expect(todayIndex(sun)).toBe(6);
   });
 
   test("uses Tallinn time, not UTC: Sunday 22:30 UTC is already Monday", () => {
     const late = new Date("2026-09-20T22:30:00Z"); // 01:30 Monday in Tallinn
     expect(planWeekDates(late)[0]).toBe("2026-09-21");
     expect(todayIndex(late)).toBe(0);
+  });
+
+  test("the week is always seven days, Monday to Sunday", () => {
+    for (const iso of [
+      "2026-09-14T06:00:00Z",
+      "2026-09-18T09:00:00Z",
+      "2026-09-19T23:00:00Z",
+      "2026-12-31T09:00:00Z",
+    ]) {
+      const week = planWeekDates(new Date(iso));
+      expect(week).toHaveLength(7);
+      expect(week[todayIndex(new Date(iso))]).toBe(localDate(new Date(iso)));
+    }
   });
 });
 

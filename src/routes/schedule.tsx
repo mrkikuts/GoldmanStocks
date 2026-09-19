@@ -366,7 +366,7 @@ function Schedule() {
         <Card className="overflow-hidden shadow-card">
           <CardContent className="overflow-x-auto p-0">
             <div className="min-w-[860px]">
-              <div className="grid grid-cols-[64px_repeat(5,1fr)] border-b bg-muted/40">
+              <div className="grid grid-cols-[64px_repeat(7,1fr)] border-b bg-muted/40">
                 <div />
                 {weekDays.map((d, i) => (
                   <div key={d} className="border-l px-3 py-2">
@@ -384,7 +384,7 @@ function Schedule() {
                 ))}
               </div>
 
-              <div className="grid grid-cols-[64px_repeat(5,1fr)]">
+              <div className="grid grid-cols-[64px_repeat(7,1fr)]">
                 <HourColumn />
                 {weekDays.map((d, dayIndex) => (
                   <div key={d} className="relative border-l">
