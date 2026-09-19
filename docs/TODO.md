@@ -1,93 +1,96 @@
 # TODO — finishing the integration
 
-Read [HANDOFF.md](HANDOFF.md) first. The list is in priority order, and each item says how to verify it.
+Read [HANDOFF.md](HANDOFF.md) first. The list is in priority order, and each item says how to
+verify it.
 
-## 1. Push the branch (2 min)
+> Updated 19 Sep 2026. Items 1 and 4 are done; the state of 2 and 3 was checked against the live
+> database rather than assumed. Anything below that needs the Supabase dashboard, the Vercel
+> dashboard or a key rotation cannot be done from a dev machine — those are the ones left.
 
-`main-test` has 6 local commits that aren't on GitHub yet (`7cc7f15` … `a5675ff`). Push them with
-GitHub Desktop → Push origin, or `git push origin main-test`.
+## 1. Merge `main-test` into `main` (5 min)
 
-## 2. Fix the live site coordinates (5 min)
+The branch is pushed — `main-test` is on GitHub at `91e1137`, so the old "push the branch" item is
+done. But it is **not merged**: `main-test` is 7 commits ahead of `main`, and PR #4 merged the
+earlier `018239d`, not this work. Confirm with:
 
-The five demo sites in the database still have rough coordinates. On the real map, Ülemiste
-(Valukoja 8) sits in a forest by the railway. The seed file (`src/lib/rootline-data.ts`) is
-already fixed; the live database isn't. Run this in Supabase → SQL Editor:
-
-```sql
-update projects set lat = 59.4196, lng = 24.8048 where id = 'p1'; -- Valukoja 8, Tallinn
-update projects set lat = 59.4335, lng = 24.7581 where id = 'p2'; -- Rävala pst 3, Tallinn
-update projects set lat = 56.9776, lng = 24.1368 where id = 'p4'; -- Duntes iela 6, Riga
-update projects set lat = 59.4379, lng = 24.7801 where id = 'p5'; -- Koidula 14, Tallinn
+```sh
+git rev-list --count origin/main..origin/main-test   # 7, plus whatever is added since
 ```
 
-For `p3` (Ranna pst 12, Pärnu), the geocoder found no exact match. Open `/projects` → **Move sites**
-and drag its pin onto the building. Plants follow their site automatically (see item 3).
+Open a PR from `main-test` into `main`. Keep the branch green — it syncs to Lovable on push
+(`AGENTS.md`), and never force-push or rebase what is already published.
+
+## 2. Fix the live site coordinates (2 min)
+
+Still needed — confirmed against the live database: `p1` sits at `59.4215, 24.7985`, which is in
+the forest by the railway, not on the Ülemiste office park.
+
+A script does it, because these are plain row updates and do not need the SQL editor:
+
+```sh
+bun run scripts/fix-site-coordinates.ts            # dry run, prints the before/after
+bun run scripts/fix-site-coordinates.ts --apply    # writes
+```
+
+For `p3` (Ranna pst 12, Pärnu) the geocoder found no exact match. Open `/projects` → **Move sites**
+and drag its pin onto the building. Plants follow their site automatically.
 
 **Verify:** on `/projects/p1` the pin and plant dots sit on the Ülemiste City office park.
 
-## 3. Write and apply migration 0003 — plant GPS (10 min)
+## 3. Apply migration 0003 — plant GPS (5 min)
 
-Until this runs, a plant registered from a phone gets a position *on the site plan*. Its exact GPS
-point is thrown away, and GPS outside the 160 × 100 m plan is clamped to the edge. The code
-already reads and writes these columns once they exist; nothing else needs to change.
+**The file is written**: `supabase/migrations/0003_plant_coordinates.sql`. It has *not* been
+applied — the live database still answers `42703: column plants.lat does not exist`.
 
-Create `supabase/migrations/0003_plant_coordinates.sql`:
+No code changes are needed either way: `src/lib/supabase/types.ts` already declares `lat`/`lng` as
+optional, and `src/lib/api/plants.ts` already retries the write without them on `PGRST204`.
 
-```sql
--- 0003_plant_coordinates.sql — real GPS positions for plants and areas.
--- Nullable on purpose: plants without them are drawn from their site-plan x/y around the site
--- (src/lib/geo.ts), so they keep following the site if it's moved on the map.
-alter table plants
-  add column if not exists lat double precision,
-  add column if not exists lng double precision;
-```
+Applying it needs DDL, and PostgREST cannot execute DDL — the REST API exposes no `/rpc/` at all,
+so no amount of service-role key helps. Two routes:
 
-Apply it: paste it into Supabase → SQL Editor → Run. Do item 2 first. Don't backfill existing
-plants: leaving them `null` is what lets them follow a moved site.
+- **Dashboard** — paste the file into Supabase → SQL Editor → Run. Always works.
+- **psql** — `supabase/README.md` claims the database is unreachable from a dev machine. That looks
+  wrong: psql is installed, the pooler resolves over IPv4 and `:5432`/`:6543` are open. The
+  reported "doesn't recognise this project's tenant" is what you get connecting as `postgres`
+  instead of `postgres.<project-ref>`. Worth one command to find out:
 
-**Verify:**
-- register a plant from `/mobile/new-plant` with location on
-- the new row in `plants` has `lat`/`lng` set
-- the dot sits exactly where the phone was
+  ```sh
+  PGPASSWORD='<db password>' psql \
+    "host=aws-0-eu-west-2.pooler.supabase.com port=5432 user=postgres.<project-ref> dbname=postgres sslmode=require" \
+    -tAc "select current_user"
+  ```
 
-If the columns stay empty, PostgREST may still have the old schema cached. Run
-`notify pgrst, 'reload schema';`.
+  If that answers, the migration can be applied from the command line and the README needs fixing.
 
-## 4. Build the monthly photo report (½–1 day) — the one unfinished feature
+Do item 2 first. Don't backfill existing plants: leaving them `null` is what lets them follow a
+moved site.
 
-On `/clients`, **"Monthly report with photos" is still a fake toast.** All the data exists:
-`task_photos` (proof photos with time and GPS), `tasks`, `care_events`, `plants`, `projects`.
+**Verify:** register a plant from `/mobile/new-plant` with location on; the new row has `lat`/`lng`;
+the dot sits where the phone was. If the columns read back empty, run `notify pgrst, 'reload schema';`.
 
-Suggested build, following the conventions in HANDOFF.md:
+## 4. ~~Build the monthly photo report~~ — done
 
-1. **Server logic**, in `src/lib/server/reports.ts`: `clientReport(db, { clientId, month: "YYYY-MM" })`
-   - the client and its sites (`projects.client_id`)
-   - the proof photos taken that month: `task_photos` joined to `tasks` for those sites,
-     `taken_at` within the month. Sign the image URLs in one go with
-     `storage.from("task-photos").createSignedUrls(paths, 3600)`.
-   - the care done that month: `care_events` with `done = true` and a `date` in the month, for plants
-     on those sites
-   - worker names for both lists
-   - totals: jobs proven with a photo, hours (sum of those tasks' `duration`), care actions,
-     plants cared for
-2. **Server function**, in `src/lib/reports.functions.ts`. Use the service-role client, imported inside the handler (see
-   `src/lib/photos.functions.ts`), because signing storage URLs needs it.
-3. **Route:** `src/routes/clients_.$clientId.report.tsx`. Keep the trailing `_`: `clients.tsx` has no
-   `<Outlet>`. Read the month from a search param (`validateSearch`, default this month). Lay the
-   page out as totals, then one section per site with a photo grid (date, job, worker, a map link from
-   the GPS), then a care log table. Add a **Print** button (`window.print()`) and hide the sidebar
-   when printing (`print:hidden`).
-4. **Button:** replace the toast in `src/routes/clients.tsx` with a `<Link>` to the report.
+Built and verified end to end. See [HANDOFF.md](HANDOFF.md) section 7 for how it works.
 
-**Verify:**
-- finish a job with a photo on `/mobile`
-- open that client's report for this month: the photo, the job and the worker appear, and the print
-  preview is clean
-- clean up the test photo afterwards: the `task_photos` row and the storage object, and set the task
-  back to `planned`
+`/clients` → **Monthly report with photos** now opens `/clients/:clientId/report?month=YYYY-MM`:
+one table row per photo uploaded that month, with the picture, date, plant, work done and worker.
 
-`task_photos` is empty right now, so reports will only show care events until real jobs are
-finished with photos.
+Verified by finishing a real job with a photo against the live database — the row appeared with the
+right worker, site, time, a signed photo and a map link, adjacent months and other clients stayed
+empty — and the test data was removed afterwards (`task_photos` back to 0 rows, `care_events` back
+to 120, task `t9` back to `planned`, storage object deleted).
+
+**What is left is real-world use, not code.** `task_photos` is empty, so every client's report is
+an empty table until workers start finishing jobs with photos in the worker app. That is the
+feature working as designed, not a bug — but it means the report cannot be demoed cold. Finish one
+job with a photo on `/mobile` first.
+
+Two limits worth knowing before showing it to anyone, both recorded in HANDOFF.md:
+
+- the **Plant** column is blank for every current task (`tasks.plant_id` is null throughout the
+  seed data); the site and zone underneath it locate the work instead
+- `clients.hours_this_month` on `/clients` is a static seeded number and does not come from this
+  report, so the two will not agree
 
 ## 5. Deploy to Vercel (15 min)
 
@@ -99,21 +102,41 @@ Follow [deploy-vercel.md](deploy-vercel.md): import the repo, set the env vars
 - the map shows tiles
 - "Approve today's plan" shows the AI explanation
 - the logo loads
+- `/clients/c1/report` renders and prints cleanly
 
-## 6. Security clean-up (10 min)
+## 6. Security clean-up — now urgent (20 min)
 
-- **Rotate** the Supabase service-role key, the database password and the OpenAI key. They were
-  pasted into an AI chat transcript. Update `.env` and the Vercel/Lovable settings afterwards.
-- **Remove the extra auth user:** Supabase → Authentication has a local dev login, `kristers-local@rootline.demo`,
-  created so one machine could run the app. Delete it if nobody uses it.
+**Rotate everything.** The Supabase `service_role` JWT, the `sb_secret_` key, the anon and
+publishable keys, the database password and the OpenAI key have all been pasted into AI chat
+transcripts. Rotate in this order:
+
+1. Supabase → Settings → Database → **Reset database password** (the riskiest: unlike the API keys
+   it is not scoped by PostgREST).
+2. Supabase → Settings → API Keys → rotate `service_role` and `sb_secret_`, and the anon /
+   publishable keys in the same pass.
+3. OpenAI → API keys → revoke and replace.
+4. Update `.env`.
+5. Update the env vars in **both** Vercel and Lovable, and redeploy — `VITE_SUPABASE_*` are baked
+   in at build time, so saving the setting is not enough.
+
+**Remove the extra auth user:** Supabase → Authentication has a local dev login,
+`kristers-local@rootline.demo`. Delete it if nobody uses it.
+
+Nothing in the codebase requires pasting a secret to anyone: `.env` is read directly by `bun`.
 
 ## 7. Nice to have
 
-- **Tidy the old docs:** refresh `docs/next-steps.md` or fold it into these files. Its "Known gaps" section is out of date.
+- **Tidy the old docs:** `docs/next-steps.md` predates all of this and its "Known gaps" section is
+  out of date. Fold it into these two files or delete it.
+- **Fix `supabase/README.md`** if the psql check in item 3 succeeds — it currently tells the next
+  person the database is unreachable.
 - **One server-function convention:** consolidate `src/lib/api/` and `src/lib/*.functions.ts`.
-- **Schedule week view:** stop concurrent jobs of different workers overlapping (split the day column per
-  worker).
-- **Push reminders:** the "Morning job reminders" switch in the worker app needs push notifications before
-  it can work.
-- **Demo data:** the shared database has a task literally titled "Hehe" (Monday, Riga). Rename or delete
-  it before any demo.
+- **Schedule week view:** stop concurrent jobs of different workers overlapping (split the day
+  column per worker).
+- **Push reminders:** the "Morning job reminders" switch in the worker app needs push notifications
+  before it can work.
+- **Demo data:** the shared database has a task titled "Hehe" (`t1789775221396`, Monday, Riga,
+  5 h). Rename or delete it before any demo.
+- **Tie tasks to plants.** Nothing sets `tasks.plant_id`, which is why the report's Plant column is
+  blank. Setting it when a task is created would fill in the report and the plant's care history
+  at the same time.

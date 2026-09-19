@@ -19,12 +19,17 @@ Six commits on `main-test`, on top of `018239d`:
 | `d33e276` | "Register new plant" in the worker app saves, with photo and GPS |
 | `a5675ff` | Drafted offers are saved; approve/dismiss persists |
 
-**Not pushed yet** — the machine these were made on has no GitHub credentials. Push `main-test`
-(GitHub Desktop → Push origin) before starting.
+**Pushed, but not merged.** `main-test` is on GitHub at `91e1137`, so nothing is waiting to be
+pushed. It is **7 commits ahead of `main` and not merged into it** — PR #4 merged the earlier
+`018239d`, not this work. Opening a PR from `main-test` into `main` is still to do.
 
 Checks at `a5675ff`: `bunx tsc --noEmit` clean, `bun test` 68/68, `bun run build` (Cloudflare) and
-`VERCEL=1 bun run build` both pass. Every feature below was also clicked through in a headless
-browser against the real Supabase project; test data was removed afterwards.
+`VERCEL=1 bun run build` both pass. After the photo report (section 7) the same four are green with
+`bun test` at 90/90. Every feature below was also clicked through in a headless browser against the
+real Supabase project; test data was removed afterwards.
+
+> If `bun run build` fails on `leaflet/dist/leaflet.css`, `node_modules` is incomplete — run
+> `bun install`. Leaflet was missing from a fresh checkout here.
 
 ## Running it
 
@@ -129,6 +134,28 @@ No `bun` installed? `npx bun@1.4.2 <command>` works the same.
 - **Approve/Dismiss persists.** Approving copies the text to the clipboard; nothing is ever sent.
 - **Code:** `src/lib/outreach.functions.ts`.
 
+### 7. Monthly photo report
+- **`/clients/:clientId/report?month=YYYY-MM`** — one table row per photo uploaded that month:
+  the picture, the date and time, the plant, the work done and the worker. Replaces the fake toast
+  on `/clients`.
+- **Code:** `src/lib/server/reports.ts` (`clientReport`), exposed through
+  `src/lib/reports.functions.ts`, rendered by `src/routes/clients_.$clientId.report.tsx`.
+- **`src/lib/month.ts`** holds the month helpers. It sits *outside* `src/lib/server/` on purpose:
+  the route needs `currentMonth`/`monthShift`/`MonthParam` to validate its search param, and
+  anything under `server/` is denied in the browser.
+- **Month boundaries are the fiddly part.** `care_events.date` is a bare `date` and compares as a
+  string, but `task_photos.taken_at` is a `timestamptz` — so the month is converted to real
+  instants in `COMPANY_TZ` (`monthRangeUtc`). September 2026 runs from `2026-08-31T21:00:00Z`;
+  naive UTC bounds would file an 08:00 job on the 1st under the previous month.
+- **Photos are signed in one batched call** (`createSignedUrls`, 100 at a time), not via
+  `getTaskPhotoUrl` — that one signs a single task's *latest* photo and would hide every repeat
+  visit of a weekly task.
+- **First `validateSearch` in the app.** `?month=` falls back to the current month rather than
+  erroring. `loaderDeps` is required with it — without it the loader does not re-run when only the
+  search param changes, and stepping between months shows stale rows.
+- **First print styling in the app.** `print:` variants on `AppShell` hide the sidebar and nav;
+  `src/styles.css` carries the `@page` margin and colour-adjust rules Tailwind can't express.
+
 ## Conventions to keep (these bit us)
 
 1. **Never import from `src/lib/server/` in browser code**, meaning routes, components and hooks. Lovable's config
@@ -152,5 +179,18 @@ No `bun` installed? `npx bun@1.4.2 <command>` works the same.
 - **Map tiles:** OpenStreetMap and Esri are free with attribution for modest traffic. Heavy use needs a paid provider.
 - **Server-function locations:** there are two, `src/lib/api/` (Track A) and `src/lib/*.functions.ts` (Track B). Both work;
   consolidate later.
+- **The report's "Plant" column is usually empty.** `tasks.plant_id` is nullable and every seeded
+  task leaves it null — the seed only attaches plants to `care_events` (`scripts/seed.ts`). The
+  column fills in once tasks are created against a specific plant; until then the site and zone
+  underneath it are what locate the work.
+- **The report is photo-driven, and `tasks` has no date.** A task is a recurring weekly template
+  (`day` 0-6 + `start` hour), so `task_photos.taken_at` is the only real date on finished work.
+  A job completed without a photo cannot be placed in a month at all.
+- **`clients.hours_this_month` is a static seeded number** shown on `/clients` and the dashboard.
+  It is not computed from anything and will not agree with what the report shows. Left alone
+  deliberately.
+- **The report reads through the service-role client** with a `clientId` straight off the URL, so
+  it bypasses RLS. Fine while every session signs in as the same demo boss; `signPhotoUrls` is a
+  separate function so the data queries can move to `getAuthedClient()` when real tenancy lands.
 - **Lint:** `bun run lint` is red on pre-existing formatting in the shadcn `ui/` components. Every file touched
   here is lint-clean.
