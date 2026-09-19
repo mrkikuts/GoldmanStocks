@@ -39,36 +39,25 @@ drop. Plants follow their site automatically.
 
 **Verify:** on `/projects/p1` the pin and plant dots sit on the Ülemiste City office park.
 
-## 3. Apply migration 0003 — plant GPS (5 min)
+## 3. ~~Apply migration 0003 — plant GPS~~ — done
 
-**The file is written**: `supabase/migrations/0003_plant_coordinates.sql`. It has *not* been
-applied — the live database still answers `42703: column plants.lat does not exist`.
+Applied 19 Sep 2026 via the Supabase Management API (see
+[supabase/README.md](../supabase/README.md) → Applying migrations, which now documents the route).
+`plants.lat` and `plants.lng` exist as nullable `double precision`, and PostgREST serves them —
+`GET /rest/v1/plants?select=id,lat,lng` returns 200 where it used to answer
+`42703: column plants.lat does not exist`.
 
-No code changes are needed either way: `src/lib/supabase/types.ts` already declares `lat`/`lng` as
-optional, and `src/lib/api/plants.ts` already retries the write without them on `PGRST204`.
+Verified by round-tripping a plant with a known position: the write no longer needs the `PGRST204`
+fallback in `src/lib/api/plants.ts`, the coordinates read back byte-identical rather than rounded,
+and `plantPosition` (`src/lib/geo.ts`) drew it at the stored GPS instead of deriving it from the
+site plan. The test plant was deleted afterwards — `plants` is back to 15 rows.
 
-Applying it needs DDL, and PostgREST cannot execute DDL — the REST API exposes no `/rpc/` at all,
-so no amount of service-role key helps. Two routes:
+Existing plants were **not** backfilled, deliberately: all 15 still have `lat`/`lng` null, which is
+what makes them keep following their site when it is moved on the map.
 
-- **Dashboard** — paste the file into Supabase → SQL Editor → Run. Always works.
-- **psql** — `supabase/README.md` claims the database is unreachable from a dev machine. That looks
-  wrong: psql is installed, the pooler resolves over IPv4 and `:5432`/`:6543` are open. The
-  reported "doesn't recognise this project's tenant" is what you get connecting as `postgres`
-  instead of `postgres.<project-ref>`. Worth one command to find out:
-
-  ```sh
-  PGPASSWORD='<db password>' psql \
-    "host=aws-0-eu-west-2.pooler.supabase.com port=5432 user=postgres.<project-ref> dbname=postgres sslmode=require" \
-    -tAc "select current_user"
-  ```
-
-  If that answers, the migration can be applied from the command line and the README needs fixing.
-
-Do item 2 first. Don't backfill existing plants: leaving them `null` is what lets them follow a
-moved site.
-
-**Verify:** register a plant from `/mobile/new-plant` with location on; the new row has `lat`/`lng`;
-the dot sits where the phone was. If the columns read back empty, run `notify pgrst, 'reload schema';`.
+**Still worth doing on a real phone:** register a plant from `/mobile/new-plant` with location
+enabled and check the dot lands where you stood. If the columns ever read back empty after a schema
+change, run `notify pgrst, 'reload schema';`.
 
 ## 4. ~~Build the monthly photo report~~ — done
 

@@ -100,10 +100,12 @@ No `bun` installed? `npx bun@1.4.2 <command>` works the same.
   - **Add site** / **Edit site**
 - **Site form:** address search and reverse lookup (`src/lib/api/geocode.ts`, OpenStreetMap Nominatim; no
   key, max 1 request/second), crew chips with a ★ for the lead.
-- **Plant positions:** until migration 0003 is applied, plants have no GPS columns, so their map position is
-  derived from their site-plan `x`/`y` around the site point (`src/lib/geo.ts`, a 160 × 100 m plan).
-  Once 0003 is applied, GPS positions are stored and used exactly. **The code already handles both cases**
-  (`savePlant` retries without lat/lng if the columns are missing).
+- **Plant positions:** migration 0003 is **applied** (19 Sep 2026), so `plants.lat`/`lng` exist and a
+  plant registered with GPS is stored and drawn at its exact position. A plant *without* GPS — which
+  is all 15 seeded ones, deliberately not backfilled — is still derived from its site-plan `x`/`y`
+  around the site point (`src/lib/geo.ts`, a 160 × 100 m plan), which is what lets it keep following
+  the site if that is moved. `plantPosition` picks between the two; `savePlant` still carries its
+  `PGRST204` retry, harmless now but the reason the app worked before the migration landed.
 - **Bug fixed:** the project detail page (`/projects/p1`) never rendered, because it was nested under the list route,
   which has no `<Outlet>`. It was renamed to `src/routes/projects_.$projectId.tsx`; the URL is unchanged.
 - **Bug fixed:** `Badge` now renders a `<span>`. As a `<div>` inside a `<p>` it broke hydration.
