@@ -615,6 +615,21 @@ export const tasks: Task[] = [
     status: "planned",
   },
   {
+    // The second half of weekend cover, and what a worker photographs on a Saturday demo.
+    id: "t14",
+    title: "Parking edge hedge check",
+    projectId: "p1",
+    client: "Ülemiste Business Park",
+    site: "Parking edge",
+    plantId: "PL-0143",
+    workerId: "w1",
+    day: 5,
+    start: 11,
+    duration: 1,
+    kind: "Inspection",
+    status: "planned",
+  },
+  {
     id: "t12",
     title: "Lilac watering + mulch",
     projectId: "p5",

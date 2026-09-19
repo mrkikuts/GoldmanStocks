@@ -87,6 +87,14 @@ function WorkerDay() {
   // The floating camera button in the tab bar photographs the next open job.
   useEffect(() => {
     setCaptureHandler(() => {
+      // "All jobs done" with an empty list reads as a success and hides the real reason the
+      // camera never opens — that nothing is scheduled. Say which it is.
+      if (!myJobs.length) {
+        toast.info(
+          `No jobs scheduled for ${weekDays[day]} — nothing to photograph.`,
+        );
+        return;
+      }
       if (!nextJob) {
         toast.success("All jobs done for today — nice work!");
         return;

@@ -155,14 +155,19 @@ when you mean to.**
 
 | What | Detail |
 | --- | --- |
-| Task `t13` "Weekend watering round" | Saturday (`day 5`), 09:00, 2 h, `w1` Mart Kivi, Ülemiste (`p1`), plant `PL-0142`. Now `status: done` |
+| Task `t13` "Weekend watering round" | Saturday (`day 5`), 09:00, 2 h, `w1` Mart Kivi, Ülemiste (`p1`), plant `PL-0142`. `status: done` — it is the row the report shows |
+| Task `t14` "Parking edge hedge check" | Saturday (`day 5`), 11:00, 1 h, `w1`, Ülemiste, plant `PL-0143`. Left **open** so the camera → **Validate work** has a job to attach to |
 | One `task_photos` row | `tasks/t13/…jpg`, a small placeholder JPEG, taken `2026-09-19T09:20+03:00` with GPS |
 | One `care_events` row | written by `completeTask`; `PL-0142.last_care` moved to 2026-09-19 |
 
 To remove: delete the `task_photos` row and its storage object, delete the `care_events` row for
 `t13`, delete task `t13`, and restore `PL-0142.last_care`.
 
-`t13` also exists in `src/lib/rootline-data.ts`, so a future `bun run seed` recreates the task
+**To demo the capture flow again** once `t14` is photographed, set it back to open:
+`PATCH /rest/v1/tasks?id=eq.t14  {"status":"planned"}` — its previous photo stays in the report,
+which is correct: a recurring job photographed on two different visits is two rows.
+
+`t13` and `t14` also exist in `src/lib/rootline-data.ts`, so a future `bun run seed` recreates them
 (without the photo). That is intentional — the seed had no weekend work at all, which made the
 weekend columns read as broken.
 
