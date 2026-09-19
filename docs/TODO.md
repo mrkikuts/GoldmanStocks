@@ -7,35 +7,51 @@ verify it.
 > database rather than assumed. Anything below that needs the Supabase dashboard, the Vercel
 > dashboard or a key rotation cannot be done from a dev machine — those are the ones left.
 
-## 1. Merge `main-test` into `main` (5 min)
+## 1. ~~Merge `main-test` into `main`~~ — done
 
-The branch is pushed — `main-test` is on GitHub at `91e1137`, so the old "push the branch" item is
-done. But it is **not merged**: `main-test` is 7 commits ahead of `main`, and PR #4 merged the
-earlier `018239d`, not this work. Confirm with:
+Merged 19 Sep 2026 with `git merge --no-ff`, so the branch's shape stays visible and no published
+history was rewritten (`AGENTS.md` — force-pushing or rebasing pushed commits corrupts Lovable's
+view of the project).
+
+PR #4 had merged only the earlier `018239d`; everything after it — the Supabase-backed screens, the
+real map, Vercel support, plant registration, saved offers and the monthly photo report — reached
+`main` in this merge. Confirm with:
 
 ```sh
-git rev-list --count origin/main..origin/main-test   # 7, plus whatever is added since
+git rev-list --count origin/main..origin/main-test   # 0
 ```
 
-Open a PR from `main-test` into `main`. Keep the branch green — it syncs to Lovable on push
-(`AGENTS.md`), and never force-push or rebase what is already published.
+The merge deleted three files from `main`, all deliberately superseded on the branch:
+`src/components/PlantMap.tsx` (replaced by the Leaflet components),
+`src/assets/goldman-stocks-logo.png.asset.json` (replaced by the bundled PNG, since the
+Lovable-hosted `/__l5e/` asset 404s on any other host) and `src/routes/projects.$projectId.tsx`
+(renamed to `projects_.$projectId.tsx` — the fix for the detail page that never rendered).
 
-## 2. ~~Fix the live site coordinates~~ — done, except `p3`
+## 2. ~~Fix the live site coordinates~~ — done
 
-Applied to the live database on 19 Sep 2026. `p1` moved from `59.4215, 24.7985` (the forest by the
-railway) to `59.4196, 24.8048`; `p2`, `p4` and `p5` likewise. Read back and confirmed.
+Applied to the live database on 19 Sep 2026. All five sites read back correct:
 
-The script is idempotent and still in the repo — re-running the dry run now reports "already
-correct" for all four:
+| | was | now | |
+| --- | --- | --- | --- |
+| `p1` | `59.4215, 24.7985` — the forest by the railway | `59.4196, 24.8048` | Valukoja 8, Tallinn |
+| `p2` | `59.4322, 24.753` | `59.4335, 24.7581` | Rävala pst 3, Tallinn |
+| `p3` | `58.379, 24.487` — 842 m off the street it names | `58.376, 24.5` | Ranna pst, Pärnu |
+| `p4` | `56.973, 24.115` | `56.9776, 24.1368` | Duntes iela 6, Riga |
+| `p5` | `59.438, 24.79` | `59.4379, 24.7801` | Koidula 14, Tallinn |
+
+The script is idempotent and still in the repo — a dry run now reports "already correct" for all
+five:
 
 ```sh
 bun run scripts/fix-site-coordinates.ts            # dry run, prints the before/after
 bun run scripts/fix-site-coordinates.ts --apply    # writes
 ```
 
-**Still to do:** `p3` (Ranna pst 12, Pärnu) has no exact geocode and is untouched at
-`58.379, 24.487`. Open `/projects` → **Move sites** and drag its pin onto the building; it saves on
-drop. Plants follow their site automatically.
+**One caveat on `p3`.** House number 12 has no geocode — Nominatim resolves the street but not the
+building — so its pin is street-level, taken from the seed file and corroborated by Nominatim to
+within ~110 m. That is a large improvement on the 842 m error it replaces, but if you want it on
+the building, open `/projects` → **Move sites** and drag it; it saves on drop, and plants follow
+their site automatically.
 
 **Verify:** on `/projects/p1` the pin and plant dots sit on the Ülemiste City office park.
 
@@ -117,17 +133,14 @@ Nothing in the codebase requires pasting a secret to anyone: `.env` is read dire
 
 ## 7. Nice to have
 
-- **Tidy the old docs:** `docs/next-steps.md` predates all of this and its "Known gaps" section is
-  out of date. Fold it into these two files or delete it.
-- **Fix `supabase/README.md`** if the psql check in item 3 succeeds — it currently tells the next
-  person the database is unreachable.
+- **Confirm or drop the psql claim.** `supabase/README.md` now documents the Management API route
+  and flags its old "psql can't reach this database" note as unconfirmed. One command settles it —
+  see item 3 — and then the note can become fact or disappear.
 - **One server-function convention:** consolidate `src/lib/api/` and `src/lib/*.functions.ts`.
 - **Schedule week view:** stop concurrent jobs of different workers overlapping (split the day
   column per worker).
 - **Push reminders:** the "Morning job reminders" switch in the worker app needs push notifications
   before it can work.
-- **Demo data:** the shared database has a task titled "Hehe" (`t1789775221396`, Monday, Riga,
-  5 h). Rename or delete it before any demo.
 - **Tie tasks to plants.** Nothing sets `tasks.plant_id`, which is why the report's Plant column is
   blank. Setting it when a task is created would fill in the report and the plant's care history
   at the same time.

@@ -3,9 +3,6 @@
 Written 19 Sep 2026 for whoever picks this up next. Everything below is on the **`main-test`**
 branch. What's left to do is in [TODO.md](TODO.md).
 
-> `docs/next-steps.md` predates this work and is partly out of date. The "mock entity data"
-> gap it describes is fixed, for example. Where the two disagree, this file and TODO.md win.
-
 ## Where the branch stands
 
 Six commits on `main-test`, on top of `018239d`:
@@ -160,10 +157,21 @@ No `bun` installed? `npx bun@1.4.2 <command>` works the same.
 
 ## Conventions to keep (these bit us)
 
-1. **Never import from `src/lib/server/` in browser code**, meaning routes, components and hooks. Lovable's config
-   blocks it, and it **only fails in the browser**: server-rendered pages still return 200. Put server-only
-   logic in `src/lib/server/` and expose it through a `createServerFn` in `src/lib/*.functions.ts`
-   or `src/lib/api/*.ts`. To check, run the sweep in `docs/next-steps.md` → "Never put a client import…".
+1. **Never import from `src/lib/server/` in browser code**, meaning routes, components and hooks. TanStack
+   denies anything under a `server/` directory in the browser, and it **only fails in the browser**:
+   server-rendered pages still return 200. Put server-only logic in `src/lib/server/` and expose it through a
+   `createServerFn` in `src/lib/*.functions.ts` or `src/lib/api/*.ts`.
+
+   To check, with `bun run dev` running, request each client module and grep for `import-protection`:
+
+   ```sh
+   for f in $(find src/routes src/hooks src/components -name "*.ts*" | grep -v /ui/); do
+     curl -s "http://localhost:8080/$f" | grep -q import-protection && echo "DENIED: $f"
+   done
+   ```
+
+   Requesting a `src/lib/server/*` module directly reports denied — that is expected and correct. The failure
+   signal is a *client entry point* being denied, or an `Importer:` line naming one.
 2. **Anything that uses storage (photos, signed URLs) needs the service-role client.** The bucket is private and
    has no storage policies. Import it inside the handler:
    `const { getAdminClient } = await import("@/lib/supabase/server")`.

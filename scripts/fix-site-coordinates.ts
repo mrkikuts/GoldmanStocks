@@ -7,14 +7,16 @@
  * The seed file (src/lib/rootline-data.ts) already has the right values; only the live rows are
  * stale, so re-seeding is not the fix — that would wipe the shared database.
  *
- * p3 (Ranna pst 12, Pärnu) is deliberately absent: the geocoder found no exact match, so its pin
- * is placed by hand on /projects → Move sites. Plants follow their site automatically.
+ * p3 (Ranna pst 12, Pärnu) is street-level, not building-level: house number 12 has no geocode.
+ * The value is the seed file's, corroborated by Nominatim, which puts Ranna pst ~110 m away. It
+ * beats the 842 m error it replaces; drag the pin on /projects → Move sites to place it exactly.
  */
 import { getAdminClient } from "../src/lib/supabase/server";
 
 const FIXES = [
   { id: "p1", lat: 59.4196, lng: 24.8048, where: "Valukoja 8, Tallinn" },
   { id: "p2", lat: 59.4335, lng: 24.7581, where: "Rävala pst 3, Tallinn" },
+  { id: "p3", lat: 58.376, lng: 24.5, where: "Ranna pst, Pärnu (street-level)" },
   { id: "p4", lat: 56.9776, lng: 24.1368, where: "Duntes iela 6, Riga" },
   { id: "p5", lat: 59.4379, lng: 24.7801, where: "Koidula 14, Tallinn" },
 ] as const;
