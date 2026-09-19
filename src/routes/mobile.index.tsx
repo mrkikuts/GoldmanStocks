@@ -14,8 +14,9 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { setCaptureHandler } from "@/lib/photo-store";
-import { weather, weekDates, weekDays, type Task } from "@/lib/rootline-data";
-import { useTaskActions, useTasks } from "@/hooks/use-tasks";
+import { weekDays, type Task } from "@/lib/rootline-data";
+import { useTaskActions } from "@/hooks/use-tasks";
+import { formatDate, useWeekPlan } from "@/hooks/use-week-plan";
 import { useActiveWorker } from "@/lib/worker-store";
 
 export const Route = createFileRoute("/mobile/")({
@@ -30,15 +31,17 @@ function hour(t: Task) {
 
 function WorkerDay() {
   const taskActions = useTaskActions();
-  const tasks = useTasks();
-  const [day, setDay] = useState(0);
+  // Same live week as the dashboard: real dates, live forecast, weather rules applied.
+  const week = useWeekPlan();
+  const tasks = week.adjusted;
+  const { weekDates, weather } = week;
+  const [day, setDay] = useState(week.today);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingTask = useRef<string | null>(null);
 
   const worker = useActiveWorker();
-  const today = weather[day];
-  const Icon =
-    weatherIcon[(today?.icon ?? "cloud") as keyof typeof weatherIcon];
+  const today = week.strip[day];
+  const Icon = weatherIcon[today?.icon ?? "cloud"];
 
   const myJobs = tasks
     .filter((t) => t.day === day && t.workerId === worker?.id)
@@ -106,8 +109,8 @@ function WorkerDay() {
           Tere, {worker?.name.split(" ")[0]}
         </h1>
         <p className="mt-1 text-sm font-medium text-muted-foreground">
-          {weekDays[day]} {weekDates[day]} · {doneCount}/{myJobs.length} jobs
-          done
+          {weekDays[day]} {formatDate(weekDates[day] ?? "")} · {doneCount}/
+          {myJobs.length} jobs done
         </p>
       </div>
 
@@ -132,7 +135,7 @@ function WorkerDay() {
                   : "text-[11px] text-muted-foreground"
               }
             >
-              {weekDates[i]?.split(" ")[0]}
+              {Number(weekDates[i]?.slice(8, 10))}
             </span>
           </Button>
         ))}
@@ -141,10 +144,20 @@ function WorkerDay() {
       <div className="flex items-center gap-3 rounded-lg border border-accent/25 bg-accent/10 p-3.5">
         <Icon className="size-5 text-accent-foreground" />
         <div className="min-w-0 text-sm">
-          <p className="font-medium">{today?.temp}°C</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {today?.note}
-          </p>
+          {weather.isPending ? (
+            <p className="text-muted-foreground">Loading forecast…</p>
+          ) : weather.isError ? (
+            <p className="text-muted-foreground">Weather unavailable</p>
+          ) : (
+            <>
+              <p className="font-medium">
+                {today?.temp == null ? "No forecast" : `${today.temp}°C`}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {today?.note}
+              </p>
+            </>
+          )}
         </div>
       </div>
 
