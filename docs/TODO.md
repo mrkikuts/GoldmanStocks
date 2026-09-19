@@ -141,7 +141,14 @@ transcripts. Rotate in this order:
 
 Nothing in the codebase requires pasting a secret to anyone: `.env` is read directly by `bun`.
 
-## 7a. Demo data deliberately left in the shared database
+## 7a. Live-data corrections and deliberate demo data
+
+**Corrected 19 Sep 2026:** the eight seeded tasks had `plant_id` null, because `scripts/seed.ts`
+dropped the field on insert even though `src/lib/rootline-data.ts` defines it. The code is fixed
+and the live rows were backfilled from the seed, so the report's **Plant** column now fills in.
+Only `t1789775221396` (created in the app) has no plant, which is correct.
+
+### Demo data deliberately left in the shared database
 
 Added 19 Sep 2026 so the monthly report has something to show. **Not test residue — remove it only
 when you mean to.**

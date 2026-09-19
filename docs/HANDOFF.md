@@ -244,10 +244,12 @@ optional and makes a task a **one-off** on that calendar date instead. Both kind
 - **Map tiles:** OpenStreetMap and Esri are free with attribution for modest traffic. Heavy use needs a paid provider.
 - **Server-function locations:** there are two, `src/lib/api/` (Track A) and `src/lib/*.functions.ts` (Track B). Both work;
   consolidate later.
-- **The report's "Plant" column is usually empty.** `tasks.plant_id` is nullable and every seeded
-  task leaves it null — the seed only attaches plants to `care_events` (`scripts/seed.ts`). The
-  column fills in once tasks are created against a specific plant; until then the site and zone
-  underneath it are what locate the work.
+- **The report's "Plant" column works** — this was previously recorded here as a design limit, and
+  that was wrong. `src/lib/rootline-data.ts` gives every task a `plantId`; `scripts/seed.ts` was
+  dropping it from the insert, so every task arrived with `plant_id` null and the column rendered
+  blank. Fixed 19 Sep 2026, and the eight existing live tasks were backfilled from the seed to
+  match. A task created in-app still has no plant unless one is chosen, and the column then shows
+  "—" with the site and zone underneath locating the work.
 - **The report is photo-driven, and `tasks` has no date.** A task is a recurring weekly template
   (`day` 0-6 + `start` hour), so `task_photos.taken_at` is the only real date on finished work.
   A job completed without a photo cannot be placed in a month at all.
