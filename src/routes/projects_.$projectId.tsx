@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { ArrowLeft, CalendarDays, MapPin, Pencil, Plus } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { PlantDialog } from "@/components/forms/PlantDialog";
@@ -24,6 +24,8 @@ import { getProject, listProjects, projectWorkers } from "@/lib/api/projects";
 import { listWorkers } from "@/lib/api/workers";
 import { projectTasks } from "@/lib/api/tasks";
 import { weekDays } from "@/lib/labels";
+import { inWeek } from "@/lib/task-schedule";
+import { planWeekDates } from "@/lib/weather";
 
 export const Route = createFileRoute("/projects_/$projectId")({
   loader: async ({ params }) => {
@@ -73,10 +75,23 @@ function ProjectNotFound() {
 }
 
 function ProjectDetail() {
-  const { project, plants, crew, tasks, clients, workers, projects } =
-    Route.useLoaderData();
+  const {
+    project,
+    plants,
+    crew,
+    tasks: allTasks,
+    clients,
+    workers,
+    projects,
+  } = Route.useLoaderData();
   const [editingSite, setEditingSite] = useState(false);
   const [addingPlant, setAddingPlant] = useState(false);
+  // "This week" below means exactly that — a job dated in a future month is not a visit yet.
+  const weekDates = useMemo(() => planWeekDates(new Date()), []);
+  const tasks = useMemo(
+    () => allTasks.filter((t) => inWeek(t, weekDates)),
+    [allTasks, weekDates],
+  );
 
   return (
     <AppShell

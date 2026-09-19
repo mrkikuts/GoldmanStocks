@@ -5,6 +5,7 @@ import { proposeDay } from "@/lib/planner";
 import { usePlants, useProjects, useWorkers } from "@/hooks/use-data";
 import { getWeekWeather } from "@/lib/weather.functions";
 import { useTasks } from "@/hooks/use-tasks";
+import { inWeek } from "@/lib/task-schedule";
 import {
   applyWeatherRules,
   COMPANY_TZ,
@@ -70,9 +71,18 @@ export function useWeekPlan() {
   const workers = useWorkers();
   const projects = useProjects();
   const plants = usePlants();
+  /**
+   * Only this week's tasks feed the plan. A task dated in a future month (migration 0004)
+   * still carries a weekday, so without this it would be planned, weathered and counted as if
+   * it were happening this week. The month view reads `tasks` for the whole picture.
+   */
+  const weekTasks = useMemo(
+    () => tasks.filter((t) => inWeek(t, weekDates)),
+    [tasks, weekDates],
+  );
   const adjusted = useMemo(
-    () => applyWeatherRules(tasks, forecasts, weekDates),
-    [tasks, forecasts, weekDates],
+    () => applyWeatherRules(weekTasks, forecasts, weekDates),
+    [weekTasks, forecasts, weekDates],
   );
 
   const strip = useMemo(() => {
@@ -87,12 +97,12 @@ export function useWeekPlan() {
   const propose = useCallback(
     (day: number) =>
       proposeDay(
-        { tasks, workers, projects, plants },
+        { tasks: weekTasks, workers, projects, plants },
         day,
         forecasts,
         weekDates,
       ),
-    [tasks, workers, projects, plants, forecasts, weekDates],
+    [weekTasks, workers, projects, plants, forecasts, weekDates],
   );
 
   return {

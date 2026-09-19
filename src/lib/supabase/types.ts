@@ -302,6 +302,7 @@ export type Database = {
           plant_id: string | null;
           worker_id: string;
           day: number;
+          date: string | null;
           start: number;
           duration: number;
           kind: string;
@@ -318,6 +319,7 @@ export type Database = {
           plant_id?: string | null;
           worker_id: string;
           day: number;
+          date?: string | null;
           start: number;
           duration: number;
           kind: string;
@@ -334,6 +336,7 @@ export type Database = {
           plant_id?: string | null;
           worker_id?: string;
           day?: number;
+          date?: string | null;
           start?: number;
           duration?: number;
           kind?: string;

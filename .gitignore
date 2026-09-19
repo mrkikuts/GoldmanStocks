@@ -18,3 +18,7 @@ dist
 # OS / editor
 .DS_Store
 *.log
+
+# A second copy of the whole app, exported from Lovable and used as the source for the
+# design merge. Not part of the build — delete it once you're happy with the merge.
+lovable-new-frontend/

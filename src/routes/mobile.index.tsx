@@ -18,6 +18,7 @@ import { weekDays } from "@/lib/labels";
 import type { Task } from "@/lib/types";
 import { useTaskActions } from "@/hooks/use-tasks";
 import { formatDate, useWeekPlan } from "@/hooks/use-week-plan";
+import { taskDateIn } from "@/lib/task-schedule";
 import { useActiveWorker } from "@/lib/worker-store";
 
 export const Route = createFileRoute("/mobile/")({
@@ -45,7 +46,11 @@ function WorkerDay() {
   const Icon = weatherIcon[today?.icon ?? "cloud"];
 
   const myJobs = tasks
-    .filter((t) => t.day === day && t.workerId === worker?.id)
+    .filter(
+      (t) =>
+        taskDateIn(t, weekDates) === (weekDates[day] ?? "") &&
+        t.workerId === worker?.id,
+    )
     .sort((a, b) => a.start - b.start);
   const nextJob = myJobs.find((t) => t.status !== "done");
   const doneCount = myJobs.filter((t) => t.status === "done").length;

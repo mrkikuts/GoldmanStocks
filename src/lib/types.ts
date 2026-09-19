@@ -80,6 +80,12 @@ export type Task = {
   plantId?: string;
   workerId: string;
   day: number; // 0 = Monday
+  /**
+   * Local calendar date, YYYY-MM-DD — set for a one-off task (migration 0004). Undefined means
+   * the task is the recurring weekly template it has always been, repeating on `day`.
+   * `day` always agrees with `date` when both are present.
+   */
+  date?: string;
   start: number; // hour, 24h
   duration: number; // hours
   kind:
