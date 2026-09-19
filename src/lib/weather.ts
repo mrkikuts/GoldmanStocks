@@ -49,6 +49,16 @@ export function localDate(now: Date, timeZone = COMPANY_TZ): string {
   }).format(now);
 }
 
+/** "08:15" for an ISO instant on the company's clock — the time a photo was actually taken. */
+export function localTime(iso: string, timeZone = COMPANY_TZ): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(iso));
+}
+
 /** 0 = Monday … 6 = Sunday */
 function weekday(date: string) {
   const [y = 1970, m = 1, d = 1] = date.split("-").map(Number);

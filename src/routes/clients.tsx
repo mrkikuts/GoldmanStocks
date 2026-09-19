@@ -1,7 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { FileText, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
 import { ClientDialog } from "@/components/forms/ClientDialog";
@@ -10,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { listClients } from "@/lib/api/clients";
+import { currentMonth } from "@/lib/month";
 import type { Client } from "@/lib/types";
 
 export const Route = createFileRoute("/clients")({
@@ -107,14 +107,14 @@ function Clients() {
                 </p>
               </div>
 
-              <Button
-                variant="secondary"
-                className="w-full"
-                onClick={() =>
-                  toast.success(`Monthly photo report for ${c.name} generated`)
-                }
-              >
-                <FileText className="size-4" /> Monthly report with photos
+              <Button asChild variant="secondary" className="w-full">
+                <Link
+                  to="/clients/$clientId/report"
+                  params={{ clientId: c.id }}
+                  search={{ month: currentMonth() }}
+                >
+                  <FileText className="size-4" /> Monthly report with photos
+                </Link>
               </Button>
             </CardContent>
           </Card>

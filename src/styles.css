@@ -142,3 +142,22 @@
     letter-spacing: 0;
   }
 }
+
+/* The monthly client report is the only page meant to reach paper. Tailwind's `print:`
+   variants cover the layout; these are the parts a utility class cannot express. */
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  /* Keep status colours and table rules — browsers drop backgrounds by default. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Without this, every link prints its href after the text. */
+  a[href]::after {
+    content: none;
+  }
+}
