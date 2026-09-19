@@ -20,20 +20,22 @@ git rev-list --count origin/main..origin/main-test   # 7, plus whatever is added
 Open a PR from `main-test` into `main`. Keep the branch green — it syncs to Lovable on push
 (`AGENTS.md`), and never force-push or rebase what is already published.
 
-## 2. Fix the live site coordinates (2 min)
+## 2. ~~Fix the live site coordinates~~ — done, except `p3`
 
-Still needed — confirmed against the live database: `p1` sits at `59.4215, 24.7985`, which is in
-the forest by the railway, not on the Ülemiste office park.
+Applied to the live database on 19 Sep 2026. `p1` moved from `59.4215, 24.7985` (the forest by the
+railway) to `59.4196, 24.8048`; `p2`, `p4` and `p5` likewise. Read back and confirmed.
 
-A script does it, because these are plain row updates and do not need the SQL editor:
+The script is idempotent and still in the repo — re-running the dry run now reports "already
+correct" for all four:
 
 ```sh
 bun run scripts/fix-site-coordinates.ts            # dry run, prints the before/after
 bun run scripts/fix-site-coordinates.ts --apply    # writes
 ```
 
-For `p3` (Ranna pst 12, Pärnu) the geocoder found no exact match. Open `/projects` → **Move sites**
-and drag its pin onto the building. Plants follow their site automatically.
+**Still to do:** `p3` (Ranna pst 12, Pärnu) has no exact geocode and is untouched at
+`58.379, 24.487`. Open `/projects` → **Move sites** and drag its pin onto the building; it saves on
+drop. Plants follow their site automatically.
 
 **Verify:** on `/projects/p1` the pin and plant dots sit on the Ülemiste City office park.
 
