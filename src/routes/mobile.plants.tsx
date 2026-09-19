@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { PlantCalendar } from "@/components/PlantCalendar";
+import { PlantPhoto } from "@/components/PlantPhoto";
 import { usePlants } from "@/hooks/use-data";
 import type { PlantStatus } from "@/lib/types";
 import { useActiveWorker, useWorkerProjects } from "@/lib/worker-store";
@@ -65,6 +66,7 @@ function MobilePlants() {
             {open.client} · {open.site}
           </p>
         </div>
+        <PlantPhoto plantId={open.id} />
         <PlantCalendar plant={open} />
       </div>
     );

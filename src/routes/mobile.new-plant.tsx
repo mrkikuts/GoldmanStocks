@@ -1,45 +1,64 @@
+import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Camera, Check, Crosshair, Leaf, Loader2, MapPin } from "lucide-react";
+import { Camera, Check, Crosshair, Loader2, MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { useRefreshData } from "@/hooks/use-data";
+import { savePlant, type PlantInput } from "@/lib/api/plants";
+import { getPref } from "@/lib/phone-prefs";
 import { setCaptureHandler } from "@/lib/photo-store";
+import {
+  attachPlantPhoto,
+  createPlantPhotoUpload,
+} from "@/lib/plants.functions";
+import { supabase } from "@/lib/supabase/client";
 import { useActiveWorker, useWorkerProjects } from "@/lib/worker-store";
 
 export const Route = createFileRoute("/mobile/new-plant")({
   component: NewPlant,
 });
 
-const kinds = ["Tree", "Hedge", "Lawn", "Flower bed", "Shrub"] as const;
+const kinds: PlantInput["kind"][] = [
+  "Tree",
+  "Hedge",
+  "Lawn",
+  "Flower bed",
+  "Shrub",
+];
+const PHOTO_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+] as const;
 
-// Stand-in for the photo species recognition — shows what the worker would see.
-const guesses: Record<
-  (typeof kinds)[number],
-  { species: string; common: string }
-> = {
-  Tree: { species: "Tilia cordata", common: "Small-leaved lime" },
-  Hedge: { species: "Thuja occidentalis", common: "White cedar" },
-  Lawn: { species: "Lolium perenne", common: "Ryegrass" },
-  "Flower bed": { species: "Lavandula angustifolia", common: "Lavender" },
-  Shrub: { species: "Taxus baccata", common: "Yew" },
-};
-
+/**
+ * Register a plant where it stands: photo, what it is, which site and area, and the phone's GPS
+ * pin. Saved to the database with its picture; it shows on the site map straight away.
+ */
 function NewPlant() {
   const navigate = useNavigate();
+  const refresh = useRefreshData();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [kind, setKind] = useState<(typeof kinds)[number]>("Tree");
   const worker = useActiveWorker();
   const projects = useWorkerProjects(worker?.id);
-  const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
+
+  const [preview, setPreview] = useState<string | null>(null);
+  const [photoPath, setPhotoPath] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [kind, setKind] = useState<PlantInput["kind"]>("Shrub");
+  const [common, setCommon] = useState("");
+  const [species, setSpecies] = useState("");
+  const [pickedProject, setProjectId] = useState("");
+  const projectId = pickedProject || projects[0]?.id || "";
   const [zone, setZone] = useState("");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
     null,
   );
   const [locating, setLocating] = useState(false);
 
-  const project = projects.find((p) => p.id === projectId) ?? projects[0];
-  const guess = guesses[kind];
+  const project = projects.find((p) => p.id === projectId);
 
   // The big camera button in the tab bar opens the plant photo while on this screen.
   useEffect(() => {
@@ -49,17 +68,9 @@ function NewPlant() {
 
   useEffect(() => {
     return () => {
-      if (photo) URL.revokeObjectURL(photo);
+      if (preview) URL.revokeObjectURL(preview);
     };
-  }, [photo]);
-
-  function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setPhoto(URL.createObjectURL(file));
-    if (!coords) locate();
-  }
+  }, [preview]);
 
   function locate() {
     if (!navigator.geolocation) {
@@ -74,20 +85,73 @@ function NewPlant() {
       },
       () => {
         setLocating(false);
-        toast.error("Location not shared — you can still save the plant");
+        toast.error(
+          "Location not shared — the plant will be placed at the site's centre",
+        );
       },
       { enableHighAccuracy: true, timeout: 8000 },
     );
   }
 
-  function save() {
-    if (!photo) {
-      toast.error("Take a photo of the plant first");
+  // Upload straight away, so saving is quick and the photo never goes through the app server.
+  async function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const contentType = (file.type ||
+      "image/jpeg") as (typeof PHOTO_TYPES)[number];
+    if (!PHOTO_TYPES.includes(contentType)) {
+      toast.error("Use a JPEG, PNG, WebP or HEIC photo");
       return;
     }
-    toast.success(`${guess.common} added to ${project?.name ?? "the site"}`);
-    navigate({ to: "/mobile/plants" });
+    setPreview(URL.createObjectURL(file));
+    setPhotoPath(null);
+    setUploading(true);
+    try {
+      const upload = await createPlantPhotoUpload({ data: { contentType } });
+      const { error } = await supabase.storage
+        .from(upload.bucket)
+        .uploadToSignedUrl(upload.path, upload.token, file);
+      if (error) throw error;
+      setPhotoPath(upload.path);
+    } catch {
+      toast.error("Couldn't upload the photo — try taking it again");
+    } finally {
+      setUploading(false);
+    }
+    if (!coords && getPref("geotag")) locate();
   }
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!photoPath) throw new Error("Take a photo of the plant first");
+      if (!common.trim()) throw new Error("Give the plant a name");
+      if (!projectId) throw new Error("Pick the site it's on");
+      const { id } = await savePlant({
+        data: {
+          projectId,
+          common: common.trim(),
+          species: species.trim(),
+          kind,
+          site: zone,
+          status: "healthy",
+          nextTask: "",
+          nextCareDate: "",
+          ...(coords ?? {}),
+        },
+      });
+      await attachPlantPhoto({ data: { plantId: id, path: photoPath } });
+      return id;
+    },
+    onSuccess: async (id) => {
+      await refresh();
+      toast.success(
+        `${common.trim()} registered as ${id} on ${project?.name ?? "the site"}`,
+      );
+      void navigate({ to: "/mobile/plants" });
+    },
+    onError: (error) => toast.error(error.message),
+  });
 
   return (
     <div className="space-y-4">
@@ -107,25 +171,30 @@ function NewPlant() {
         </p>
       </div>
 
-      {photo ? (
+      {preview ? (
         <div className="overflow-hidden rounded-xl border bg-card">
           <img
-            src={photo}
+            src={preview}
             alt="New plant"
             className="h-48 w-full object-cover"
           />
-          <div className="flex items-center gap-2 p-3">
-            <Leaf className="size-4 shrink-0 text-primary" />
-            <div className="min-w-0 flex-1 text-sm">
-              <p className="font-medium">{guess.common}</p>
-              <p className="truncate text-xs italic text-muted-foreground">
-                {guess.species}
-              </p>
-            </div>
+          <div className="flex items-center gap-2 p-3 text-sm">
+            {uploading ? (
+              <>
+                <Loader2 className="size-4 animate-spin text-muted-foreground" />{" "}
+                Uploading…
+              </>
+            ) : photoPath ? (
+              <>
+                <Check className="size-4 text-status-healthy" /> Photo saved
+              </>
+            ) : (
+              <span className="text-status-critical">Upload failed</span>
+            )}
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="rounded-lg border px-3 py-2 text-xs"
+              className="ml-auto rounded-lg border px-3 py-2 text-xs"
             >
               Retake
             </button>
@@ -144,8 +213,20 @@ function NewPlant() {
 
       <section className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Kind
+          What is it?
         </p>
+        <input
+          value={common}
+          onChange={(e) => setCommon(e.target.value)}
+          placeholder="Name, e.g. Lilac by the gate"
+          className="w-full rounded-xl border bg-card p-3 text-sm"
+        />
+        <input
+          value={species}
+          onChange={(e) => setSpecies(e.target.value)}
+          placeholder="Species if you know it, e.g. Syringa vulgaris"
+          className="w-full rounded-xl border bg-card p-3 text-sm italic"
+        />
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
           {kinds.map((k) => (
             <button
@@ -170,9 +251,15 @@ function NewPlant() {
         </p>
         <select
           value={projectId}
-          onChange={(e) => setProjectId(e.target.value)}
+          onChange={(e) => {
+            setProjectId(e.target.value);
+            setZone("");
+          }}
           className="w-full rounded-xl border bg-card p-3 text-sm"
         >
+          {projects.length === 0 ? (
+            <option value="">No sites assigned to you</option>
+          ) : null}
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name} · {p.city}
@@ -202,7 +289,7 @@ function NewPlant() {
           <p className="min-w-0 flex-1 text-sm">
             {coords
               ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`
-              : "Not pinned yet"}
+              : "Not pinned — it'll go to the site's centre"}
           </p>
           <button
             type="button"
@@ -229,10 +316,16 @@ function NewPlant() {
         </button>
         <button
           type="button"
-          onClick={save}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground"
+          onClick={() => save.mutate()}
+          disabled={save.isPending || uploading}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
         >
-          <Check className="size-5" /> Save plant
+          {save.isPending ? (
+            <Loader2 className="size-5 animate-spin" />
+          ) : (
+            <Check className="size-5" />
+          )}
+          Save plant
         </button>
       </div>
     </div>

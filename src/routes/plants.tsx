@@ -12,6 +12,7 @@ import { useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PlantDialog } from "@/components/forms/PlantDialog";
 import { PlantCalendar } from "@/components/PlantCalendar";
+import { PlantPhoto } from "@/components/PlantPhoto";
 import { StatusDot } from "@/components/StatusDot";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -285,6 +286,7 @@ function Plants() {
                   {openPlant.species} · {openPlant.client} · {openPlant.site}
                 </DialogDescription>
               </DialogHeader>
+              <PlantPhoto plantId={openPlant.id} />
               <PlantCalendar plant={openPlant} />
             </>
           ) : null}
