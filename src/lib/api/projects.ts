@@ -1,8 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod/v4";
 
-import type { Project, Worker } from "../rootline-data";
+import type { Project, Worker } from "../types";
 import { clientNameById } from "./lookups";
 import { toProject, toWorker } from "./mappers";
+import { bumpClientCounter, nextId } from "./ids";
 import { getAuthedClient } from "./session";
 
 /** Replaces the `projects` array in rootline-data.ts. */
@@ -21,7 +23,7 @@ export const listProjects = createServerFn({ method: "GET" }).handler(
 
 /** Mirrors `getProject()` in rootline-data.ts — null rather than undefined for a missing id. */
 export const getProject = createServerFn({ method: "GET" })
-  .inputValidator((projectId: string) => projectId)
+  .validator((projectId: string) => projectId)
   .handler(async ({ data: projectId }): Promise<Project | null> => {
     const [{ data, error }, nameByClient] = await Promise.all([
       (await getAuthedClient())
@@ -47,7 +49,7 @@ export type ProjectWorker = Worker & {
  * project detail page renders.
  */
 export const projectWorkers = createServerFn({ method: "GET" })
-  .inputValidator((projectId: string) => projectId)
+  .validator((projectId: string) => projectId)
   .handler(async ({ data: projectId }): Promise<ProjectWorker[]> => {
     const db = await getAuthedClient();
 
@@ -86,4 +88,72 @@ export const projectWorkers = createServerFn({ method: "GET" })
         },
       ];
     });
+  });
+
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const latitude = z.number().min(-90).max(90);
+const longitude = z.number().min(-180).max(180);
+
+export const SiteInput = z.object({
+  /** omit to add a new site */
+  id: z.string().optional(),
+  clientId: z.string().min(1, "Pick a client"),
+  name: z.string().trim().min(1, "Name is required"),
+  address: z.string().trim().min(1, "Address is required"),
+  city: z.string().trim().min(1, "City is required"),
+  lat: latitude,
+  lng: longitude,
+  zones: z.array(z.string().trim().min(1)),
+  workerIds: z.array(z.string()),
+  leadWorkerId: z.string(),
+  visitsPerMonth: z.number().int().min(0),
+  monthlyValue: z.number().min(0),
+  contractUntil: isoDate.or(z.literal("")),
+  status: z.enum(["healthy", "attention", "critical"]),
+});
+export type SiteInput = z.infer<typeof SiteInput>;
+
+/** Create or update a work site (project). Adding one bumps its client's site count. */
+export const saveSite = createServerFn({ method: "POST" })
+  .validator(SiteInput)
+  .handler(async ({ data }): Promise<{ id: string }> => {
+    const db = await getAuthedClient();
+    const row = {
+      client_id: data.clientId,
+      name: data.name,
+      address: data.address,
+      city: data.city,
+      lat: data.lat,
+      lng: data.lng,
+      zones: data.zones,
+      worker_ids: data.workerIds,
+      lead_worker_id: data.leadWorkerId || null,
+      visits_per_month: data.visitsPerMonth,
+      monthly_value: data.monthlyValue,
+      contract_until: data.contractUntil || null,
+      status: data.status,
+    };
+    if (data.id) {
+      const { error } = await db.from("projects").update(row).eq("id", data.id);
+      if (error) throw new Error(error.message);
+      return { id: data.id };
+    }
+    const id = await nextId(db, "projects", "p");
+    const { error } = await db.from("projects").insert({ ...row, id });
+    if (error) throw new Error(error.message);
+    await bumpClientCounter(db, data.clientId, "sites");
+    return { id };
+  });
+
+/** Move a site on the map. The weather lookup and route planning follow it. */
+export const moveSite = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string().min(1), lat: latitude, lng: longitude }))
+  .handler(async ({ data }) => {
+    const db = await getAuthedClient();
+    const { error } = await db
+      .from("projects")
+      .update({ lat: data.lat, lng: data.lng })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { id: data.id };
   });

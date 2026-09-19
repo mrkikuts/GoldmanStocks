@@ -1,8 +1,13 @@
+import { useQuery } from "@tanstack/react-query";
 import { Camera, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { plantCareEvents, TODAY, type CareEvent } from "@/lib/plant-care";
-import type { Plant } from "@/lib/rootline-data";
+import { Skeleton } from "@/components/ui/skeleton";
+import { plantCareEvents, type CareEntry } from "@/lib/api/care";
+import type { Plant } from "@/lib/types";
+import { localDate } from "@/lib/weather";
+
+const NO_EVENTS: CareEntry[] = [];
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = [
@@ -20,13 +25,28 @@ const MONTH_NAMES = [
   "December",
 ];
 
+/** A plant's care history and plan, month by month, from the database. */
 export function PlantCalendar({ plant }: { plant: Plant }) {
-  const events = useMemo(() => plantCareEvents(plant), [plant]);
-  const [month, setMonth] = useState(8); // September
-  const year = 2026;
+  const care = useQuery({
+    queryKey: ["care", plant.id],
+    queryFn: () => plantCareEvents({ data: plant.id }),
+  });
+  const events = care.data ?? NO_EVENTS;
+
+  const today = localDate(new Date());
+  const [cursor, setCursor] = useState(() => ({
+    year: Number(today.slice(0, 4)),
+    month: Number(today.slice(5, 7)) - 1,
+  }));
+  const { year, month } = cursor;
+  const shift = (by: number) =>
+    setCursor(({ year: y, month: m }) => {
+      const next = new Date(y, m + by, 1);
+      return { year: next.getFullYear(), month: next.getMonth() };
+    });
 
   const byDate = useMemo(() => {
-    const map = new Map<string, CareEvent[]>();
+    const map = new Map<string, CareEntry[]>();
     for (const e of events) {
       const list = map.get(e.date) ?? [];
       list.push(e);
@@ -52,9 +72,8 @@ export function PlantCalendar({ plant }: { plant: Plant }) {
       <div className="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => setMonth((m) => Math.max(0, m - 1))}
-          className="rounded-md border p-1.5 hover:bg-muted disabled:opacity-40"
-          disabled={month === 0}
+          onClick={() => shift(-1)}
+          className="rounded-md border p-1.5 hover:bg-muted"
           aria-label="Previous month"
         >
           <ChevronLeft className="size-4" />
@@ -64,9 +83,8 @@ export function PlantCalendar({ plant }: { plant: Plant }) {
         </p>
         <button
           type="button"
-          onClick={() => setMonth((m) => Math.min(11, m + 1))}
-          className="rounded-md border p-1.5 hover:bg-muted disabled:opacity-40"
-          disabled={month === 11}
+          onClick={() => shift(1)}
+          className="rounded-md border p-1.5 hover:bg-muted"
           aria-label="Next month"
         >
           <ChevronRight className="size-4" />
@@ -81,10 +99,11 @@ export function PlantCalendar({ plant }: { plant: Plant }) {
 
       <div className="grid grid-cols-7 gap-1">
         {cells.map((day, i) => {
-          if (day === null) return <div key={`empty-${i}`} className="min-h-16 rounded-md" />;
+          if (day === null)
+            return <div key={`empty-${i}`} className="min-h-16 rounded-md" />;
           const key = dateKey(day);
           const dayEvents = byDate.get(key) ?? [];
-          const isToday = key === TODAY;
+          const isToday = key === today;
           return (
             <div
               key={key}
@@ -116,22 +135,46 @@ export function PlantCalendar({ plant }: { plant: Plant }) {
       </div>
 
       <div className="space-y-1.5">
-        <p className="text-xs font-medium text-muted-foreground">Care history & plan</p>
-        {events.map((e, i) => (
-          <div key={`${e.date}-${i}`} className="flex items-center gap-2 text-sm">
-            <span
-              className={`size-2 shrink-0 rounded-full ${
-                e.done ? "bg-status-healthy" : "bg-status-attention"
-              }`}
-            />
-            <span className="w-24 shrink-0 text-xs text-muted-foreground tabular-nums">
-              {e.date}
-            </span>
-            <span className="min-w-0 flex-1 truncate">{e.action}</span>
-            <span className="shrink-0 text-xs text-muted-foreground">{e.workerName}</span>
-            {e.photo ? <Camera className="size-3.5 shrink-0 text-muted-foreground" /> : null}
+        <p className="text-xs font-medium text-muted-foreground">
+          Care history & plan
+        </p>
+        {care.isPending ? (
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-4/5" />
           </div>
-        ))}
+        ) : care.isError ? (
+          <p className="text-sm text-muted-foreground">
+            Couldn't load the care history: {care.error.message}
+          </p>
+        ) : events.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No care recorded or planned yet.
+          </p>
+        ) : (
+          events.map((e, i) => (
+            <div
+              key={`${e.date}-${i}`}
+              className="flex items-center gap-2 text-sm"
+            >
+              <span
+                className={`size-2 shrink-0 rounded-full ${
+                  e.done ? "bg-status-healthy" : "bg-status-attention"
+                }`}
+              />
+              <span className="w-24 shrink-0 text-xs text-muted-foreground tabular-nums">
+                {e.date}
+              </span>
+              <span className="min-w-0 flex-1 truncate">{e.action}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {e.workerName}
+              </span>
+              {e.photo ? (
+                <Camera className="size-3.5 shrink-0 text-muted-foreground" />
+              ) : null}
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

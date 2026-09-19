@@ -1,6 +1,10 @@
 import { getProject, plants, workers, type Plant } from "./rootline-data";
 
-export const TODAY = "2026-09-21";
+/**
+ * The mock data's "today". Only the seed script (and its helpers below) should use this — it
+ * generates the demo week around it. App code reads real dates from the database.
+ */
+export const MOCK_TODAY = "2026-09-21";
 
 export type CareEvent = {
   date: string; // YYYY-MM-DD
@@ -31,7 +35,7 @@ function iso(d: Date) {
   ).padStart(2, "0")}`;
 }
 
-/** "12 Sep" / "Today" -> Date in 2026 */
+/** Mock "12 Sep" / "Today" strings -> Date in the mock's 2026 (seed data only). */
 export function parseShortDate(value: string) {
   if (value.toLowerCase() === "today") return new Date(2026, 8, 21);
   const [day, month] = value.split(" ");
@@ -67,7 +71,8 @@ export function plantCareEvents(plant: Plant): CareEvent[] {
     const workerId = crew[i % Math.max(crew.length, 1)];
     events.push({
       date: iso(d),
-      action: rotation[(rotation.length - i) % rotation.length] ?? "Maintenance",
+      action:
+        rotation[(rotation.length - i) % rotation.length] ?? "Maintenance",
       workerName: workers.find((w) => w.id === workerId)?.name,
       done: true,
       photo: i < 3,
@@ -81,7 +86,10 @@ export function plantCareEvents(plant: Plant): CareEvent[] {
     const workerId = crew[i % Math.max(crew.length, 1)];
     events.push({
       date: iso(d),
-      action: i === 0 ? plant.nextTask : (rotation[i % rotation.length] ?? "Maintenance"),
+      action:
+        i === 0
+          ? plant.nextTask
+          : (rotation[i % rotation.length] ?? "Maintenance"),
       workerName: workers.find((w) => w.id === workerId)?.name,
       done: false,
     });

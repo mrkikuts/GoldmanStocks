@@ -9,14 +9,47 @@ import type {
   Worker,
 } from "./types";
 
-// Types live in ./types (the shared contract); re-exported so existing imports keep working.
-export type { Client, Plant, PlantStatus, Project, Task, Worker } from "./types";
+// Types live in ./types (the shared contract) and labels in ./labels; re-exported so the seed
+// script and tests keep working. The app itself reads everything from the database.
+export { statusLabel, weekDays } from "./labels";
+export type {
+  Client,
+  Plant,
+  PlantStatus,
+  Project,
+  Task,
+  Worker,
+} from "./types";
 
 export const workers: Worker[] = [
-  { id: "w1", name: "Mart Kivi", role: "Head gardener", language: "ET", color: "var(--chart-1)" },
-  { id: "w2", name: "Liis Tamm", role: "Gardener", language: "ET", color: "var(--chart-2)" },
-  { id: "w3", name: "Janis Ozols", role: "Seasonal", language: "LV", color: "var(--chart-3)" },
-  { id: "w4", name: "Kaisa Rand", role: "Tree care", language: "EN", color: "var(--chart-5)" },
+  {
+    id: "w1",
+    name: "Mart Kivi",
+    role: "Head gardener",
+    language: "ET",
+    color: "var(--chart-1)",
+  },
+  {
+    id: "w2",
+    name: "Liis Tamm",
+    role: "Gardener",
+    language: "ET",
+    color: "var(--chart-2)",
+  },
+  {
+    id: "w3",
+    name: "Janis Ozols",
+    role: "Seasonal",
+    language: "LV",
+    color: "var(--chart-3)",
+  },
+  {
+    id: "w4",
+    name: "Kaisa Rand",
+    role: "Tree care",
+    language: "EN",
+    color: "var(--chart-5)",
+  },
 ];
 
 export const clients: Client[] = [
@@ -90,8 +123,8 @@ export const projects: Project[] = [
     client: "Ülemiste Business Park",
     city: "Tallinn",
     address: "Valukoja 8, Tallinn",
-    lat: 59.422,
-    lng: 24.798,
+    lat: 59.4196, // Valukoja 8, Ülemiste City (geocoded)
+    lng: 24.8048,
     zones: ["North courtyard", "Parking edge", "Canal walk"],
     leadWorkerId: "w1",
     workerIds: ["w1", "w4", "w2"],
@@ -107,8 +140,8 @@ export const projects: Project[] = [
     client: "Hotel Nordic Grand",
     city: "Tallinn",
     address: "Rävala pst 3, Tallinn",
-    lat: 59.433,
-    lng: 24.753,
+    lat: 59.4335, // Rävala pst 3 (geocoded)
+    lng: 24.7581,
     zones: ["Front entrance", "Terrace beds"],
     leadWorkerId: "w2",
     workerIds: ["w2", "w1"],
@@ -124,7 +157,7 @@ export const projects: Project[] = [
     client: "Pärnu Seaside Apartments",
     city: "Pärnu",
     address: "Ranna pst 12, Pärnu",
-    lat: 58.376,
+    lat: 58.376, // Ranna pst, beach park (approximate — no exact geocode)
     lng: 24.5,
     zones: ["Dune side", "Courtyard"],
     leadWorkerId: "w2",
@@ -141,8 +174,8 @@ export const projects: Project[] = [
     client: "Riga Green Offices",
     city: "Riga",
     address: "Duntes iela 6, Riga",
-    lat: 56.975,
-    lng: 24.125,
+    lat: 56.9776, // Duntes iela 6 (geocoded)
+    lng: 24.1368,
     zones: ["Building B alley", "Reception garden", "Roof terrace"],
     leadWorkerId: "w3",
     workerIds: ["w3", "w4"],
@@ -158,8 +191,8 @@ export const projects: Project[] = [
     client: "Villa Kadriorg",
     city: "Tallinn",
     address: "Koidula 14, Tallinn",
-    lat: 59.437,
-    lng: 24.786,
+    lat: 59.4379, // Koidula 14, Kadriorg (geocoded)
+    lng: 24.7801,
     zones: ["Back garden", "Front slope"],
     leadWorkerId: "w1",
     workerIds: ["w1", "w3"],
@@ -398,7 +431,6 @@ export const plants: Plant[] = [
   },
 ];
 
-export const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 export const weekDates = ["21 Sep", "22 Sep", "23 Sep", "24 Sep", "25 Sep"];
 
 export const weather: DayWeather[] = [
@@ -583,17 +615,23 @@ export const tasks: Task[] = [
 ];
 
 export const revenueOpportunities: RevenueOpportunity[] = [
-  { client: "Ülemiste Business Park", what: "Hedge clipping due next week", value: 780 },
-  { client: "Riga Green Offices", what: "Box hedge + alley pruning", value: 1240 },
+  {
+    client: "Ülemiste Business Park",
+    what: "Hedge clipping due next week",
+    value: 780,
+  },
+  {
+    client: "Riga Green Offices",
+    what: "Box hedge + alley pruning",
+    value: 1240,
+  },
   { client: "Hotel Nordic Grand", what: "Autumn lawn renovation", value: 640 },
-  { client: "Pärnu Seaside Apartments", what: "Bulb planting package", value: 540 },
+  {
+    client: "Pärnu Seaside Apartments",
+    what: "Bulb planting package",
+    value: 540,
+  },
 ];
-
-export const statusLabel: Record<PlantStatus, string> = {
-  healthy: "Healthy",
-  attention: "Needs attention",
-  critical: "Critical",
-};
 
 export function getProject(id: string) {
   return projects.find((p) => p.id === id);

@@ -26,13 +26,43 @@ Every column, type and nullability flag is in `definitions`.
 
 ## Applying migrations
 
-Paste them into the dashboard SQL editor. The pooler doesn't recognise this project's tenant and
-the direct host is IPv6-only with no route from this machine, so `psql` can't reach the database
-and API keys cannot execute DDL.
+Two routes. **API keys — anon or service-role — cannot execute DDL**: they authenticate against
+PostgREST, which has no way to run `alter table`, and this project exposes no `/rpc/` to borrow.
+That part is not a configuration problem and no key will fix it.
+
+**Scripted — the Management API.** A *personal access token* (`sbp_…`, from
+[supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens)) is a
+different credential from the API keys, and it can run arbitrary SQL:
+
+```sh
+curl -X POST "https://api.supabase.com/v1/projects/<project-ref>/database/query" \
+  -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data "$(python3 -c 'import json;print(json.dumps({"query": open("supabase/migrations/0003_plant_coordinates.sql").read()}))')"
+```
+
+It runs as `postgres`, so it can do anything. An empty `[]` back means the DDL ran and returned no
+rows. Follow any schema change with a cache reload, or PostgREST keeps answering `42703` for the
+new columns while Postgres already has them:
+
+```sql
+notify pgrst, 'reload schema';
+```
+
+**Manual — the dashboard SQL editor.** Paste and Run. Always works, needs no token.
+
+> An earlier note here said `psql` cannot reach this database — the pooler not recognising the
+> tenant, the direct host being IPv6-only. The direct host is indeed AAAA-only, but the pooler
+> resolves over IPv4 with `:5432` and `:6543` open, and "Tenant or user not found" is what you get
+> connecting as `postgres` instead of `postgres.<project-ref>`. Never actually retested, so treat
+> it as unconfirmed rather than fact.
 
 - `0002_authenticated_access.sql` — grants the `authenticated` role access to the demo tables.
   Required: RLS is on but no policy admitted signed-in users, so every query returned zero rows.
   Additive (Postgres ORs permissive policies), so existing policies are untouched.
+- `0003_plant_coordinates.sql` — nullable `lat`/`lng` on `plants`. **Applied 19 Sep 2026** via the
+  Management API. Existing plants were deliberately left `null`: that is what makes them keep
+  following their site when it is moved on the map (`src/lib/geo.ts`, `plantPosition`).
 
 ## Demo data
 

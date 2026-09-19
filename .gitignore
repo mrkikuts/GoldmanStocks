@@ -13,6 +13,7 @@ dist
 .vinxi
 .tanstack
 .wrangler
+.vercel
 
 # OS / editor
 .DS_Store

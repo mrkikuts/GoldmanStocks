@@ -1,14 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Smartphone, UserPlus } from "lucide-react";
-import { toast } from "sonner";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Pencil, Smartphone, UserPlus } from "lucide-react";
+import { useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import { WorkerDialog } from "@/components/forms/WorkerDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { listTasks } from "@/lib/api/tasks";
 import { listWorkers } from "@/lib/api/workers";
-import { weekDays } from "@/lib/rootline-data";
+import { weekDays } from "@/lib/labels";
+import type { Worker } from "@/lib/types";
+import { setActiveWorker } from "@/lib/worker-store";
 
 export const Route = createFileRoute("/workers")({
   head: () => ({
@@ -35,18 +38,18 @@ export const Route = createFileRoute("/workers")({
 
 function Workers() {
   const { workers, tasks } = Route.useLoaderData();
+  const navigate = useNavigate();
+  // undefined = closed, null = new worker, a worker = editing them
+  const [editing, setEditing] = useState<Worker | null | undefined>();
+  const languages = [...new Set(workers.map((w) => w.language))].join(", ");
 
   return (
     <AppShell
       title="Workers"
-      subtitle="Crew of 4 · worker app in Estonian, Latvian and English"
+      subtitle={`Crew of ${workers.length} · speaking ${languages || "—"}`}
       actions={
-        <Button
-          onClick={() =>
-            toast.success("Invite link copied — send it to the new worker")
-          }
-        >
-          <UserPlus className="size-4" /> Invite worker
+        <Button onClick={() => setEditing(null)}>
+          <UserPlus className="size-4" /> Add worker
         </Button>
       }
     >
@@ -76,7 +79,17 @@ function Workers() {
                     <p className="text-sm text-muted-foreground">{w.role}</p>
                   </div>
                 </div>
-                <Badge variant="secondary">{w.language}</Badge>
+                <div className="flex items-center gap-1">
+                  <Badge variant="secondary">{w.language}</Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setEditing(w)}
+                    aria-label={`Edit ${w.name}`}
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-3 gap-3 text-sm">
@@ -127,17 +140,24 @@ function Workers() {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() =>
-                    toast(`Today's list sent to ${w.name}'s phone`)
-                  }
+                  onClick={() => {
+                    setActiveWorker(w.id);
+                    void navigate({ to: "/mobile" });
+                  }}
                 >
-                  <Smartphone className="size-4" /> Send today's list
+                  <Smartphone className="size-4" /> Open in worker app
                 </Button>
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      <WorkerDialog
+        worker={editing ?? undefined}
+        open={editing !== undefined}
+        onOpenChange={(open) => (open ? null : setEditing(undefined))}
+      />
     </AppShell>
   );
 }

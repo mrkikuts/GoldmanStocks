@@ -1,8 +1,21 @@
-import { Link, Outlet, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { CalendarDays, Camera, CheckCircle2, Leaf, MapPin, Settings } from "lucide-react";
+import {
+  Link,
+  Outlet,
+  createFileRoute,
+  useNavigate,
+} from "@tanstack/react-router";
+import {
+  CalendarDays,
+  Camera,
+  CheckCircle2,
+  Leaf,
+  MapPin,
+  Settings,
+} from "lucide-react";
 import { useState } from "react";
 
-import logoAsset from "@/assets/goldman-stocks-logo.png.asset.json";
+// Bundled with the app so it loads on any host (Lovable, Vercel, local dev).
+import logoUrl from "@/assets/goldman-stocks-logo.png";
 import {
   Sheet,
   SheetContent,
@@ -26,11 +39,15 @@ export const Route = createFileRoute("/mobile")({
       { property: "og:title", content: "Goldman Stocks worker app" },
       {
         property: "og:description",
-        content: "Today's jobs and photo proof, sized for a phone in a work glove.",
+        content:
+          "Today's jobs and photo proof, sized for a phone in a work glove.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1, viewport-fit=cover",
+      },
     ],
   }),
 });
@@ -50,13 +67,17 @@ function MobileLayout() {
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-background">
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b bg-background/95 px-5 py-3.5 backdrop-blur-xl">
         <img
-          src={logoAsset.url}
+          src={logoUrl}
           alt="Goldman Stocks logo"
           className="size-9 rounded-lg object-cover shadow-sm"
         />
         <div className="min-w-0">
-          <p className="font-display text-base font-bold leading-none text-primary">Goldman Stocks</p>
-          <p className="mt-1 truncate text-[10px] font-medium text-muted-foreground">Worker app</p>
+          <p className="font-display text-base font-bold leading-none text-primary">
+            Goldman Stocks
+          </p>
+          <p className="mt-1 truncate text-[10px] font-medium text-muted-foreground">
+            Worker app
+          </p>
         </div>
         <Link to="/" className="ml-auto text-xs font-medium text-primary">
           Full site
@@ -104,10 +125,17 @@ function MobileLayout() {
       </nav>
 
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-        <SheetContent side="bottom" className="mx-auto max-w-md rounded-t-lg border-border bg-background">
+        <SheetContent
+          side="bottom"
+          className="mx-auto max-w-md rounded-t-lg border-border bg-background"
+        >
           <SheetHeader className="text-left">
-            <SheetTitle className="font-display">What are you photographing?</SheetTitle>
-            <SheetDescription>Pick one — the camera opens next.</SheetDescription>
+            <SheetTitle className="font-display">
+              What are you photographing?
+            </SheetTitle>
+            <SheetDescription>
+              Pick one — the camera opens next.
+            </SheetDescription>
           </SheetHeader>
 
           <div className="mt-4 grid gap-3 pb-2">
@@ -121,7 +149,9 @@ function MobileLayout() {
             >
               <CheckCircle2 className="size-6 shrink-0" />
               <span>
-                <span className="block text-sm font-semibold">Validate work</span>
+                <span className="block text-sm font-semibold">
+                  Validate work
+                </span>
                 <span className="block text-xs opacity-80">
                   Photo proof for your next unfinished job
                 </span>
@@ -139,7 +169,9 @@ function MobileLayout() {
             >
               <MapPin className="size-6 shrink-0 text-primary" />
               <span>
-                <span className="block text-sm font-semibold">Register new plant</span>
+                <span className="block text-sm font-semibold">
+                  Register new plant
+                </span>
                 <span className="block text-xs text-muted-foreground">
                   Photo, species and the spot it stands in
                 </span>

@@ -1,10 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarDays, Camera, MapPin, Search } from "lucide-react";
+import {
+  CalendarDays,
+  Camera,
+  MapPin,
+  Pencil,
+  Plus,
+  Search,
+} from "lucide-react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
+import { PlantDialog } from "@/components/forms/PlantDialog";
 import { PlantCalendar } from "@/components/PlantCalendar";
+import { PlantPhoto } from "@/components/PlantPhoto";
 import { StatusDot } from "@/components/StatusDot";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +36,7 @@ import {
 import { listPlants } from "@/lib/api/plants";
 import { listProjects } from "@/lib/api/projects";
 import { listWorkers } from "@/lib/api/workers";
-import { type Plant } from "@/lib/rootline-data";
+import type { Plant } from "@/lib/types";
 
 export const Route = createFileRoute("/plants")({
   head: () => ({
@@ -74,6 +82,8 @@ function Plants() {
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<(typeof filters)[number]>("All");
   const [openPlant, setOpenPlant] = useState<Plant | null>(null);
+  // undefined = closed, null = new plant, a plant = editing it
+  const [editing, setEditing] = useState<Plant | null | undefined>();
 
   const { plants, projects, workers } = Route.useLoaderData();
 
@@ -111,11 +121,16 @@ function Plants() {
       title="Plants & areas"
       subtitle={`${plants.length} registered items across ${projects.length} projects`}
       actions={
-        <Button
-          onClick={() => toast("Open the worker app to add a plant by photo")}
-        >
-          <Camera className="size-4" /> Add by photo
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/mobile/new-plant">
+              <Camera className="size-4" /> Add by photo
+            </Link>
+          </Button>
+          <Button onClick={() => setEditing(null)}>
+            <Plus className="size-4" /> Register plant
+          </Button>
+        </div>
       }
     >
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -211,7 +226,15 @@ function Plants() {
                             {p.nextCare}
                           </p>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right whitespace-nowrap">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setEditing(p)}
+                            aria-label={`Edit ${p.common}`}
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -238,6 +261,13 @@ function Plants() {
         ) : null}
       </div>
 
+      <PlantDialog
+        plant={editing ?? undefined}
+        projects={projects}
+        open={editing !== undefined}
+        onOpenChange={(open) => (open ? null : setEditing(undefined))}
+      />
+
       <Dialog
         open={Boolean(openPlant)}
         onOpenChange={(o) => (o ? null : setOpenPlant(null))}
@@ -256,6 +286,7 @@ function Plants() {
                   {openPlant.species} · {openPlant.client} · {openPlant.site}
                 </DialogDescription>
               </DialogHeader>
+              <PlantPhoto plantId={openPlant.id} />
               <PlantCalendar plant={openPlant} />
             </>
           ) : null}

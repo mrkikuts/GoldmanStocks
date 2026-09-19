@@ -82,7 +82,8 @@ export function findOpportunities(
         .flatMap((plant) => {
           const repeat = REPEAT_JOBS[plant.kind];
           if (!repeat) return [];
-          const last = toIso(parseShortDate(plant.lastCare));
+          const last =
+            plant.lastCareDate ?? toIso(parseShortDate(plant.lastCare));
           const dueDate = addDays(
             last,
             Math.round(intervalByKind[plant.kind] * factor),

@@ -179,3 +179,23 @@ export async function listDraftOffers(db: SupabaseClient) {
   if (error) throw error;
   return (data as OfferRow[]).map(fromRow);
 }
+
+/** An opportunity counts as handled for this long after an offer was drafted for its site. */
+export const OFFER_COOLDOWN_DAYS = 30;
+
+/**
+ * Offers that are still waiting, plus any drafted in the last OFFER_COOLDOWN_DAYS (approved or
+ * dismissed) — the sites these cover aren't offered again yet.
+ */
+export async function listRecentOffers(db: SupabaseClient, now = new Date()) {
+  const since = new Date(
+    now.getTime() - OFFER_COOLDOWN_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const { data, error } = await db
+    .from("offers")
+    .select()
+    .or(`status.eq.draft,created_at.gte.${since}`)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as OfferRow[]).map(fromRow);
+}

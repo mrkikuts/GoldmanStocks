@@ -1,13 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { FileText, Plus } from "lucide-react";
-import { toast } from "sonner";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { FileText, Pencil, Plus } from "lucide-react";
+import { useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import { ClientDialog } from "@/components/forms/ClientDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { listClients } from "@/lib/api/clients";
+import { currentMonth } from "@/lib/month";
+import type { Client } from "@/lib/types";
 
 export const Route = createFileRoute("/clients")({
   head: () => ({
@@ -38,6 +41,8 @@ const healthStyles = {
 
 function Clients() {
   const clients = Route.useLoaderData();
+  // undefined = closed, null = new client, a client = editing it
+  const [editing, setEditing] = useState<Client | null | undefined>();
   const maxHours = clients.length
     ? Math.max(...clients.map((c) => c.hoursThisMonth))
     : 1;
@@ -48,11 +53,7 @@ function Clients() {
       title="Clients"
       subtitle={`${clients.length} maintenance contracts · €${revenue.toLocaleString("en-GB")} per month`}
       actions={
-        <Button
-          onClick={() =>
-            toast("Client onboarding starts with mapping the first site")
-          }
-        >
+        <Button onClick={() => setEditing(null)}>
           <Plus className="size-4" /> New client
         </Button>
       }
@@ -67,9 +68,19 @@ function Clients() {
                   {c.city} · {c.sites} sites · {c.plants} plants
                 </p>
               </div>
-              <Badge variant="outline" className={healthStyles[c.health]}>
-                {c.health}
-              </Badge>
+              <div className="flex items-center gap-1">
+                <Badge variant="outline" className={healthStyles[c.health]}>
+                  {c.health}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setEditing(c)}
+                  aria-label={`Edit ${c.name}`}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-3 gap-3 text-sm">
@@ -90,24 +101,31 @@ function Clients() {
                   className="mt-2"
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  €{Math.round(c.monthlyValue / c.hoursThisMonth)} per hour
-                  worked
+                  {c.hoursThisMonth > 0
+                    ? `€${Math.round(c.monthlyValue / c.hoursThisMonth)} per hour worked`
+                    : "No hours logged this month yet"}
                 </p>
               </div>
 
-              <Button
-                variant="secondary"
-                className="w-full"
-                onClick={() =>
-                  toast.success(`Monthly photo report for ${c.name} generated`)
-                }
-              >
-                <FileText className="size-4" /> Monthly report with photos
+              <Button asChild variant="secondary" className="w-full">
+                <Link
+                  to="/clients/$clientId/report"
+                  params={{ clientId: c.id }}
+                  search={{ month: currentMonth() }}
+                >
+                  <FileText className="size-4" /> Monthly report with photos
+                </Link>
               </Button>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      <ClientDialog
+        client={editing ?? undefined}
+        open={editing !== undefined}
+        onOpenChange={(open) => (open ? null : setEditing(undefined))}
+      />
     </AppShell>
   );
 }
