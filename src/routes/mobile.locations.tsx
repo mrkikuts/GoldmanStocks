@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MapPin, Users } from "lucide-react";
 
-import { PlantMap } from "@/components/PlantMap";
+import { SiteMap } from "@/components/map";
 import { usePlants, useWorkers } from "@/hooks/use-data";
 import { useActiveWorker, useWorkerProjects } from "@/lib/worker-store";
 
@@ -79,7 +79,7 @@ function MobileLocations() {
               </span>
             </div>
 
-            <PlantMap plants={plants} />
+            <SiteMap project={project} plants={plants} height={260} />
 
             <div className="flex items-center gap-2 border-t pt-3">
               <Users className="size-4 shrink-0 text-muted-foreground" />

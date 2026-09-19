@@ -1,7 +1,7 @@
 /**
  * Database rows -> the domain types the screens already use.
  *
- * The UI types in `@/lib/types` are the contract here: every screen, plus PlantMap,
+ * The UI types in `@/lib/types` are the contract here: every screen, plus the maps,
  * PlantCalendar and plant-care.ts, was written against them. Mapping back to that exact shape
  * is what lets A6 be an import swap instead of a rewrite.
  *

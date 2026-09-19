@@ -1,10 +1,14 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { ArrowLeft, CalendarDays, MapPin } from "lucide-react";
+import { ArrowLeft, CalendarDays, MapPin, Pencil, Plus } from "lucide-react";
+import { useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
-import { PlantMap } from "@/components/PlantMap";
+import { PlantDialog } from "@/components/forms/PlantDialog";
+import { SiteDialog } from "@/components/forms/SiteDialog";
+import { SiteMap } from "@/components/map";
 import { StatusDot } from "@/components/StatusDot";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -14,21 +18,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { listClients } from "@/lib/api/clients";
 import { projectPlants } from "@/lib/api/plants";
-import { getProject, projectWorkers } from "@/lib/api/projects";
+import { getProject, listProjects, projectWorkers } from "@/lib/api/projects";
+import { listWorkers } from "@/lib/api/workers";
 import { projectTasks } from "@/lib/api/tasks";
 import { weekDays } from "@/lib/labels";
 
-export const Route = createFileRoute("/projects/$projectId")({
+export const Route = createFileRoute("/projects_/$projectId")({
   loader: async ({ params }) => {
     const project = await getProject({ data: params.projectId });
     if (!project) throw notFound();
-    const [plants, crew, tasks] = await Promise.all([
-      projectPlants({ data: params.projectId }),
-      projectWorkers({ data: params.projectId }),
-      projectTasks({ data: params.projectId }),
-    ]);
-    return { project, plants, crew, tasks };
+    const [plants, crew, tasks, clients, workers, projects] = await Promise.all(
+      [
+        projectPlants({ data: params.projectId }),
+        projectWorkers({ data: params.projectId }),
+        projectTasks({ data: params.projectId }),
+        listClients(),
+        listWorkers(),
+        listProjects(),
+      ],
+    );
+    return { project, plants, crew, tasks, clients, workers, projects };
   },
   head: ({ loaderData }) => {
     const name = loaderData ? loaderData.project.name : "Project";
@@ -62,19 +73,30 @@ function ProjectNotFound() {
 }
 
 function ProjectDetail() {
-  const { project, plants, crew, tasks } = Route.useLoaderData();
+  const { project, plants, crew, tasks, clients, workers, projects } =
+    Route.useLoaderData();
+  const [editingSite, setEditingSite] = useState(false);
+  const [addingPlant, setAddingPlant] = useState(false);
 
   return (
     <AppShell
       title={project.name}
       subtitle={`${project.client} · ${project.address}`}
       actions={
-        <Link
-          to="/projects"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" /> All projects
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            to="/projects"
+            className="inline-flex items-center gap-1.5 px-2 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" /> All projects
+          </Link>
+          <Button variant="outline" onClick={() => setEditingSite(true)}>
+            <Pencil className="size-4" /> Edit site
+          </Button>
+          <Button onClick={() => setAddingPlant(true)}>
+            <Plus className="size-4" /> Register plant here
+          </Button>
+        </div>
       }
     >
       <div className="grid gap-4 lg:grid-cols-3">
@@ -85,7 +107,7 @@ function ProjectDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <PlantMap plants={plants} />
+            <SiteMap project={project} plants={plants} height={440} />
           </CardContent>
         </Card>
 
@@ -235,6 +257,19 @@ function ProjectDetail() {
           </Table>
         </CardContent>
       </Card>
+      <SiteDialog
+        site={project}
+        clients={clients}
+        workers={workers}
+        open={editingSite}
+        onOpenChange={setEditingSite}
+      />
+      <PlantDialog
+        projects={projects}
+        defaultProjectId={project.id}
+        open={addingPlant}
+        onOpenChange={setAddingPlant}
+      />
     </AppShell>
   );
 }

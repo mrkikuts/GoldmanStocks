@@ -123,8 +123,8 @@ export const projects: Project[] = [
     client: "Ülemiste Business Park",
     city: "Tallinn",
     address: "Valukoja 8, Tallinn",
-    lat: 59.422,
-    lng: 24.798,
+    lat: 59.4196, // Valukoja 8, Ülemiste City (geocoded)
+    lng: 24.8048,
     zones: ["North courtyard", "Parking edge", "Canal walk"],
     leadWorkerId: "w1",
     workerIds: ["w1", "w4", "w2"],
@@ -140,8 +140,8 @@ export const projects: Project[] = [
     client: "Hotel Nordic Grand",
     city: "Tallinn",
     address: "Rävala pst 3, Tallinn",
-    lat: 59.433,
-    lng: 24.753,
+    lat: 59.4335, // Rävala pst 3 (geocoded)
+    lng: 24.7581,
     zones: ["Front entrance", "Terrace beds"],
     leadWorkerId: "w2",
     workerIds: ["w2", "w1"],
@@ -157,7 +157,7 @@ export const projects: Project[] = [
     client: "Pärnu Seaside Apartments",
     city: "Pärnu",
     address: "Ranna pst 12, Pärnu",
-    lat: 58.376,
+    lat: 58.376, // Ranna pst, beach park (approximate — no exact geocode)
     lng: 24.5,
     zones: ["Dune side", "Courtyard"],
     leadWorkerId: "w2",
@@ -174,8 +174,8 @@ export const projects: Project[] = [
     client: "Riga Green Offices",
     city: "Riga",
     address: "Duntes iela 6, Riga",
-    lat: 56.975,
-    lng: 24.125,
+    lat: 56.9776, // Duntes iela 6 (geocoded)
+    lng: 24.1368,
     zones: ["Building B alley", "Reception garden", "Roof terrace"],
     leadWorkerId: "w3",
     workerIds: ["w3", "w4"],
@@ -191,8 +191,8 @@ export const projects: Project[] = [
     client: "Villa Kadriorg",
     city: "Tallinn",
     address: "Koidula 14, Tallinn",
-    lat: 59.437,
-    lng: 24.786,
+    lat: 59.4379, // Koidula 14, Kadriorg (geocoded)
+    lng: 24.7801,
     zones: ["Back garden", "Front slope"],
     leadWorkerId: "w1",
     workerIds: ["w1", "w3"],
