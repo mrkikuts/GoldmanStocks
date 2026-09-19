@@ -26,7 +26,7 @@ import {
  * rather than the caller importing the constant.
  */
 export const createPhotoUploadUrl = createServerFn({ method: "POST" })
-  .inputValidator((input: PhotoUploadInput) => PhotoUploadInput.parse(input))
+  .validator((input: PhotoUploadInput) => PhotoUploadInput.parse(input))
   .handler(async ({ data }) => {
     const { getAdminClient } = await import("@/lib/supabase/server");
     const upload = await createPhotoUploadUrlImpl(getAdminClient(), data);
@@ -35,7 +35,7 @@ export const createPhotoUploadUrl = createServerFn({ method: "POST" })
 
 /** Step 3: record the proof and mark the task done. Rejects a photo that never arrived. */
 export const completeTask = createServerFn({ method: "POST" })
-  .inputValidator((input: CompleteTaskInput) => CompleteTaskInput.parse(input))
+  .validator((input: CompleteTaskInput) => CompleteTaskInput.parse(input))
   .handler(async ({ data }) => {
     const { getAdminClient } = await import("@/lib/supabase/server");
     return completeTaskImpl(getAdminClient(), data);

@@ -9,6 +9,7 @@ import {
   updateTask,
   type TaskPatch,
 } from "@/lib/api/tasks";
+import { getPref } from "@/lib/phone-prefs";
 import { completeTask, createPhotoUploadUrl } from "@/lib/photos.functions";
 import { supabase } from "@/lib/supabase/client";
 import type { Task } from "@/lib/types";
@@ -86,7 +87,8 @@ export function useTaskActions() {
         .uploadToSignedUrl(upload.path, upload.token, file);
       if (error) throw error;
 
-      const where = await currentPosition();
+      // "Stamp photos with location" in the worker app's settings
+      const where = getPref("geotag") ? await currentPosition() : null;
       return completeTask({
         data: {
           taskId,

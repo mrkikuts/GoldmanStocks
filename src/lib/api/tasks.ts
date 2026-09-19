@@ -25,7 +25,7 @@ export const listTasks = createServerFn({ method: "GET" }).handler(
 
 /** Mirrors `projectTasks()` in rootline-data.ts. */
 export const projectTasks = createServerFn({ method: "GET" })
-  .inputValidator((projectId: string) => projectId)
+  .validator((projectId: string) => projectId)
   .handler(async ({ data: projectId }): Promise<Task[]> => {
     const [{ data, error }, clientByProject] = await Promise.all([
       (await getAuthedClient())
@@ -86,7 +86,7 @@ function toRow(patch: TaskPatch) {
 }
 
 export const updateTask = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string; patch: TaskPatch }) => input)
+  .validator((input: { id: string; patch: TaskPatch }) => input)
   .handler(async ({ data: { id, patch } }) => {
     const { error } = await (
       await getAuthedClient()
@@ -104,7 +104,7 @@ export const updateTask = createServerFn({ method: "POST" })
  * round trip and cannot half-apply.
  */
 export const replaceTasks = createServerFn({ method: "POST" })
-  .inputValidator((tasks: Task[]) => tasks)
+  .validator((tasks: Task[]) => tasks)
   .handler(async ({ data: tasks }) => {
     if (tasks.length === 0) return { count: 0 };
     const { error } = await (await getAuthedClient()).from("tasks").upsert(
@@ -129,7 +129,7 @@ export const replaceTasks = createServerFn({ method: "POST" })
   });
 
 export const removeTask = createServerFn({ method: "POST" })
-  .inputValidator((id: string) => id)
+  .validator((id: string) => id)
   .handler(async ({ data: id }) => {
     const { error } = await (
       await getAuthedClient()
@@ -142,7 +142,7 @@ export const removeTask = createServerFn({ method: "POST" })
   });
 
 export const addTask = createServerFn({ method: "POST" })
-  .inputValidator((input: Omit<Task, "id">) => input)
+  .validator((input: Omit<Task, "id">) => input)
   .handler(async ({ data: task }) => {
     const id = `t${Date.now()}`;
     const { error } = await (await getAuthedClient()).from("tasks").insert({

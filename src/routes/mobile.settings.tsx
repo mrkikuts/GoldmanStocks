@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Bell, Camera, Languages, MapPin, User } from "lucide-react";
-import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useWorkers } from "@/hooks/use-data";
+import { useRefreshData, useWorkers } from "@/hooks/use-data";
+import { saveWorker } from "@/lib/api/workers";
+import { setPref, usePref } from "@/lib/phone-prefs";
 import {
   setActiveWorker,
   useActiveWorker,
@@ -34,6 +36,13 @@ export const Route = createFileRoute("/mobile/settings")({
   }),
 });
 
+/** English names for the toast; the buttons show each language's own name. */
+const LANGUAGE_NAMES: Record<string, string> = {
+  ET: "Estonian",
+  LV: "Latvian",
+  EN: "English",
+};
+
 const languages = [
   { code: "ET", label: "Eesti" },
   { code: "EN", label: "English" },
@@ -45,9 +54,31 @@ function MobileSettings() {
   const workerId = activeWorker?.id;
   const workers = useWorkers();
   const mySites = useWorkerProjects(workerId);
-  const [language, setLanguage] = useState("ET");
-  const [geoTag, setGeoTag] = useState(true);
-  const [reminders, setReminders] = useState(true);
+  const refresh = useRefreshData();
+  const geoTag = usePref("geotag");
+  // The language a worker speaks lives on their record: the planner uses it to match them
+  // with sites (Latvian speakers to Riga, …).
+  const language = activeWorker?.language ?? "ET";
+  const setLanguage = useMutation({
+    mutationFn: (code: string) =>
+      activeWorker
+        ? saveWorker({
+            data: {
+              id: activeWorker.id,
+              name: activeWorker.name,
+              role: activeWorker.role,
+              language: code as "ET" | "LV" | "EN",
+            },
+          })
+        : Promise.reject(new Error("No worker selected")),
+    onSuccess: async (_, code) => {
+      await refresh();
+      toast.success(
+        `Saved — the planner now treats ${activeWorker?.name.split(" ")[0]} as speaking ${LANGUAGE_NAMES[code] ?? code}`,
+      );
+    },
+    onError: (error) => toast.error(error.message),
+  });
 
   return (
     <div className="space-y-6">
@@ -99,15 +130,22 @@ function MobileSettings() {
 
       <section className="space-y-4 rounded-lg border bg-card p-4 shadow-card">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Languages className="size-4 text-primary" /> Language
+          <Languages className="size-4 text-primary" /> Language you speak
         </h2>
+        <p className="-mt-2 text-xs text-muted-foreground">
+          Saved to your worker profile — the planner prefers sites where it's
+          spoken.
+        </p>
         <div className="flex gap-2">
           {languages.map((l) => (
             <Button
               key={l.code}
               type="button"
               variant="outline"
-              onClick={() => setLanguage(l.code)}
+              disabled={setLanguage.isPending}
+              onClick={() => {
+                if (l.code !== language) setLanguage.mutate(l.code);
+              }}
               className={`h-10 flex-1 rounded-lg ${
                 l.code === language
                   ? "border-primary bg-primary font-semibold text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
@@ -127,13 +165,13 @@ function MobileSettings() {
             <div>
               <p className="text-sm font-medium">Stamp photos with location</p>
               <p className="text-xs text-muted-foreground">
-                Work photos get the GPS spot of the plant.
+                Proof photos record where they were taken. Saved on this phone.
               </p>
             </div>
           </div>
           <Switch
             checked={geoTag}
-            onCheckedChange={setGeoTag}
+            onCheckedChange={(on) => setPref("geotag", on)}
             aria-label="Stamp photos with location"
           />
         </div>
@@ -143,20 +181,21 @@ function MobileSettings() {
             <div>
               <p className="text-sm font-medium">Morning job reminders</p>
               <p className="text-xs text-muted-foreground">
-                A nudge at 7:30 with today's list.
+                Not available yet — needs push notifications, which aren't set
+                up.
               </p>
             </div>
           </div>
           <Switch
-            checked={reminders}
-            onCheckedChange={setReminders}
-            aria-label="Morning job reminders"
+            checked={false}
+            disabled
+            aria-label="Morning job reminders (not available yet)"
           />
         </div>
       </section>
 
       <p className="flex items-center justify-center gap-1.5 pb-2 text-center text-[11px] text-muted-foreground">
-        <Camera className="size-3" /> Goldman Stocks worker app · demo build
+        <Camera className="size-3" /> Goldman Stocks worker app
       </p>
     </div>
   );
