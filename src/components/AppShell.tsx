@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
-import logoAsset from "@/assets/goldman-stocks-logo.png.asset.json";
+// Bundled with the app so it loads on any host (Lovable, Vercel, local dev).
+import logoUrl from "@/assets/goldman-stocks-logo.png";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -37,13 +38,17 @@ export function AppShell({
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-5 py-7 text-sidebar-foreground md:flex">
         <div className="flex items-center gap-3 px-2">
           <img
-            src={logoAsset.url}
+            src={logoUrl}
             alt="Goldman Stocks logo"
             className="size-9 rounded-lg object-cover shadow-sm"
           />
           <div>
-            <p className="font-display text-xl font-bold leading-none text-primary">Goldman Stocks</p>
-            <p className="mt-1 text-[11px] font-medium text-muted-foreground">Landscape management</p>
+            <p className="font-display text-xl font-bold leading-none text-primary">
+              Goldman Stocks
+            </p>
+            <p className="mt-1 text-[11px] font-medium text-muted-foreground">
+              Landscape management
+            </p>
           </div>
         </div>
 
@@ -70,8 +75,12 @@ export function AppShell({
             Worker app
           </Link>
           <div className="rounded-lg border border-accent/20 bg-accent/10 p-4 text-xs text-foreground">
-            <p className="font-semibold text-accent-foreground">AI plan ready</p>
-            <p className="mt-1">Today's routes for 4 workers are waiting for your approval.</p>
+            <p className="font-semibold text-accent-foreground">
+              AI plan ready
+            </p>
+            <p className="mt-1">
+              Today's routes for 4 workers are waiting for your approval.
+            </p>
           </div>
         </div>
       </aside>
@@ -81,7 +90,9 @@ export function AppShell({
           <div className="flex flex-wrap items-end justify-between gap-4 px-6 py-6 lg:px-10">
             <div>
               <h1 className="text-3xl font-bold text-primary">{title}</h1>
-              {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
+              {subtitle ? (
+                <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+              ) : null}
             </div>
             {actions}
           </div>

@@ -19,3 +19,7 @@ is `src/routes/__root.tsx`.
 | `__root.tsx` | app shell — wraps every page; preserve `<Outlet />` |
 
 `routeTree.gen.ts` is auto-generated. Don't edit it by hand.
+
+## Deploying
+
+See [docs/deploy-vercel.md](docs/deploy-vercel.md) for hosting on Vercel.
