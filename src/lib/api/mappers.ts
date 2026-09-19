@@ -1,7 +1,7 @@
 /**
  * Database rows -> the domain types the screens already use.
  *
- * The UI types in `@/lib/rootline-data` are the contract here: every screen, plus PlantMap,
+ * The UI types in `@/lib/types` are the contract here: every screen, plus PlantMap,
  * PlantCalendar and plant-care.ts, was written against them. Mapping back to that exact shape
  * is what lets A6 be an import swap instead of a rewrite.
  *
@@ -12,17 +12,17 @@
  */
 import { format, parseISO } from "date-fns";
 
-import { TODAY } from "../plant-care";
-import type { Client, Plant, Project, Task, Worker } from "../rootline-data";
+import { localDate } from "../weather";
+import type { Client, Plant, Project, Task, Worker } from "../types";
 import type { Database } from "../supabase/types";
 
 type Row<T extends keyof Database["public"]["Tables"]> =
   Database["public"]["Tables"][T]["Row"];
 
-/** "2026-09-12" -> "12 Sep", and today's date -> "Today", matching the original mock data. */
+/** "2026-09-12" -> "12 Sep", and today's (real) date -> "Today", matching the original mock data. */
 export function toShortDate(value: string | null): string {
   if (!value) return "";
-  if (value === TODAY) return "Today";
+  if (value === localDate(new Date())) return "Today";
   return format(parseISO(value), "dd MMM");
 }
 
@@ -87,6 +87,13 @@ export function toPlant(row: Row<"plants">, clientName: string): Plant {
     nextTask: row.next_task ?? "",
     x: Number(row.x),
     y: Number(row.y),
+    ...(row.last_care ? { lastCareDate: row.last_care } : {}),
+    ...(row.next_care ? { nextCareDate: row.next_care } : {}),
+    // Real GPS once migration 0003 is applied; until then the columns don't exist and the map
+    // derives a position from x/y (src/lib/geo.ts).
+    ...(row.lat != null && row.lng != null
+      ? { lat: Number(row.lat), lng: Number(row.lng) }
+      : {}),
   };
 }
 

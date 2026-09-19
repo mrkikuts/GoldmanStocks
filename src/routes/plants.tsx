@@ -28,7 +28,7 @@ import {
 import { listPlants } from "@/lib/api/plants";
 import { listProjects } from "@/lib/api/projects";
 import { listWorkers } from "@/lib/api/workers";
-import { type Plant } from "@/lib/rootline-data";
+import type { Plant } from "@/lib/types";
 
 export const Route = createFileRoute("/plants")({
   head: () => ({

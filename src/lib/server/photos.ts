@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod/v4";
 
 import type { TaskPhoto } from "@/lib/types";
+import { localDate } from "@/lib/weather";
 
 /**
  * Photo proof of work (B5), backend only. The flow a worker app will use:
@@ -127,11 +128,32 @@ export async function completeTask(
     .single();
   if (insertError) throw insertError;
 
-  const { error: updateError } = await db
+  const { data: task, error: updateError } = await db
     .from("tasks")
     .update({ status: "done" })
-    .eq("id", taskId);
+    .eq("id", taskId)
+    .select("title, plant_id, worker_id")
+    .single();
   if (updateError) throw updateError;
+
+  // The job becomes part of the plant's history: a done care event, and a fresh last-care date.
+  if (task.plant_id) {
+    const date = localDate(new Date(takenAt));
+    const { error: careError } = await db.from("care_events").insert({
+      plant_id: task.plant_id,
+      task_id: taskId,
+      worker_id: task.worker_id,
+      date,
+      action: task.title,
+      done: true,
+    });
+    if (careError) throw careError;
+    const { error: plantError } = await db
+      .from("plants")
+      .update({ last_care: date })
+      .eq("id", task.plant_id);
+    if (plantError) throw plantError;
+  }
 
   return fromRow(photo as PhotoRow);
 }

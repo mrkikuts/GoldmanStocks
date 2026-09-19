@@ -168,6 +168,9 @@ export type Database = {
           next_task: string | null;
           x: number;
           y: number;
+          /** migration 0003 — absent (undefined) until it's applied */
+          lat?: number | null;
+          lng?: number | null;
           created_at: string;
         };
         Insert: {
@@ -183,6 +186,8 @@ export type Database = {
           next_task?: string | null;
           x: number;
           y: number;
+          lat?: number | null;
+          lng?: number | null;
           created_at?: string;
         };
         Update: {
@@ -198,6 +203,8 @@ export type Database = {
           next_task?: string | null;
           x?: number;
           y?: number;
+          lat?: number | null;
+          lng?: number | null;
           created_at?: string;
         };
         Relationships: [];

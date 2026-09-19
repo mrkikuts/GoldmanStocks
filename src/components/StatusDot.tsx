@@ -1,5 +1,5 @@
-import type { PlantStatus } from "@/lib/rootline-data";
-import { statusLabel } from "@/lib/rootline-data";
+import { statusLabel } from "@/lib/labels";
+import type { PlantStatus } from "@/lib/types";
 
 const dotClass: Record<PlantStatus, string> = {
   healthy: "bg-status-healthy",

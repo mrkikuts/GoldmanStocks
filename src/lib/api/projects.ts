@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import type { Project, Worker } from "../rootline-data";
+import type { Project, Worker } from "../types";
 import { clientNameById } from "./lookups";
 import { toProject, toWorker } from "./mappers";
 import { getAuthedClient } from "./session";

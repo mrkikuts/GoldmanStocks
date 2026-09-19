@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
 import { proposeDay } from "@/lib/planner";
-import { plants, projects, workers } from "@/lib/rootline-data";
+import { usePlants, useProjects, useWorkers } from "@/hooks/use-data";
 import { getWeekWeather } from "@/lib/weather.functions";
 import { useTasks } from "@/hooks/use-tasks";
 import {
@@ -51,8 +51,7 @@ export function partOfDay(now: Date) {
 /**
  * Everything the dashboard and schedule need about the plan week: its dates, the
  * live forecast, the tasks with the weather rules applied, the weather strip, and
- * the planner's proposal for any day. Tasks come from the in-memory task store
- * until track A's tasks server functions land.
+ * the planner's proposal for any day. Everything comes from the database.
  */
 export function useWeekPlan() {
   const now = useMemo(() => new Date(), []);
@@ -68,6 +67,9 @@ export function useWeekPlan() {
   const forecasts = weather.data?.forecasts ?? NO_FORECASTS;
 
   const tasks = useTasks();
+  const workers = useWorkers();
+  const projects = useProjects();
+  const plants = usePlants();
   const adjusted = useMemo(
     () => applyWeatherRules(tasks, forecasts, weekDates),
     [tasks, forecasts, weekDates],
@@ -80,7 +82,7 @@ export function useWeekPlan() {
       weekDates,
       adjusted,
     );
-  }, [forecasts, weekDates, adjusted]);
+  }, [projects, forecasts, weekDates, adjusted]);
 
   const propose = useCallback(
     (day: number) =>
@@ -90,7 +92,7 @@ export function useWeekPlan() {
         forecasts,
         weekDates,
       ),
-    [tasks, forecasts, weekDates],
+    [tasks, workers, projects, plants, forecasts, weekDates],
   );
 
   return {
@@ -100,6 +102,9 @@ export function useWeekPlan() {
     weather,
     forecasts,
     tasks,
+    workers,
+    projects,
+    plants,
     adjusted,
     strip,
     propose,

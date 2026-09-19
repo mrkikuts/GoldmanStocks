@@ -17,7 +17,7 @@ import {
 import { projectPlants } from "@/lib/api/plants";
 import { getProject, projectWorkers } from "@/lib/api/projects";
 import { projectTasks } from "@/lib/api/tasks";
-import { weekDays } from "@/lib/rootline-data";
+import { weekDays } from "@/lib/labels";
 
 export const Route = createFileRoute("/projects/$projectId")({
   loader: async ({ params }) => {

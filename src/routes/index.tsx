@@ -31,13 +31,12 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate, partOfDay, useWeekPlan } from "@/hooks/use-week-plan";
 import { findOpportunities } from "@/lib/outreach";
-import { parseShortDate } from "@/lib/plant-care";
 import type { DayPlan } from "@/lib/planner";
-import { plants, clients, projects, workers } from "@/lib/rootline-data";
+import { useClients } from "@/hooks/use-data";
 import { draftOffers } from "@/lib/outreach.functions";
 import { explainPlan, type ExplainPlanInput } from "@/lib/plan.functions";
 import { useTaskActions } from "@/hooks/use-tasks";
-import type { Offer, OfferStatus, Plant, Task } from "@/lib/types";
+import type { Offer, OfferStatus, Plant, Task, Worker } from "@/lib/types";
 import { overnightRainMm, primaryProject } from "@/lib/weather";
 
 export const Route = createFileRoute("/")({
@@ -65,11 +64,9 @@ export const Route = createFileRoute("/")({
 
 const weatherIcon = { rain: CloudRain, cloud: Cloud, sun: Sun } as const;
 
-/** Next care date as YYYY-MM-DD ("Today" means today). */
-function nextCareDate(plant: Plant, today: string) {
-  if (plant.nextCare.toLowerCase() === "today") return today;
-  const d = parseShortDate(plant.nextCare);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+/** Next care date as YYYY-MM-DD, or null when none is planned. */
+function nextCareDate(plant: Plant) {
+  return plant.nextCareDate ?? null;
 }
 
 function toStop(t: Task) {
@@ -86,7 +83,18 @@ function toStop(t: Task) {
 function Dashboard() {
   const taskActions = useTaskActions();
   const week = useWeekPlan();
-  const { today, weekDates, weather, forecasts, strip, propose } = week;
+  const {
+    today,
+    weekDates,
+    weather,
+    forecasts,
+    strip,
+    propose,
+    plants,
+    projects,
+    workers,
+  } = week;
+  const clients = useClients();
   const todayDate = weekDates[today] ?? weekDates[0]!;
 
   const proposal = useMemo(() => propose(today), [propose, today]);
@@ -104,14 +112,17 @@ function Dashboard() {
     ? Math.round(overnightRainMm(primaryForecast, todayDate))
     : null;
 
-  const due = plants.filter((p) => nextCareDate(p, todayDate) <= todayDate);
-  const overdue = due.filter((p) => nextCareDate(p, todayDate) < todayDate);
+  const due = plants.filter((p) => {
+    const next = nextCareDate(p);
+    return next !== null && next <= todayDate;
+  });
+  const overdue = due.filter((p) => (nextCareDate(p) ?? "") < todayDate);
   const critical = plants.filter((p) => p.status === "critical");
   const plantsUnderCare = clients.reduce((sum, c) => sum + c.plants, 0);
 
   const opportunities = useMemo(
     () => findOpportunities({ plants, projects, clients, forecasts }, week.now),
-    [forecasts, week.now],
+    [plants, projects, clients, forecasts, week.now],
   );
   const pipeline = opportunities.reduce((sum, o) => sum + o.value, 0);
 
@@ -284,7 +295,11 @@ function Dashboard() {
           </CardHeader>
           <CardContent className="space-y-4">
             {proposal.byWorker.map((plan) => (
-              <WorkerPlan key={plan.workerId} plan={plan} />
+              <WorkerPlan
+                key={plan.workerId}
+                plan={plan}
+                worker={workers.find((w) => w.id === plan.workerId)}
+              />
             ))}
           </CardContent>
         </Card>
@@ -489,8 +504,13 @@ function Dashboard() {
   );
 }
 
-function WorkerPlan({ plan }: { plan: DayPlan }) {
-  const worker = workers.find((w) => w.id === plan.workerId);
+function WorkerPlan({
+  plan,
+  worker,
+}: {
+  plan: DayPlan;
+  worker: Worker | undefined;
+}) {
   return (
     <div className="rounded-xl border p-3">
       <div className="flex items-center justify-between">

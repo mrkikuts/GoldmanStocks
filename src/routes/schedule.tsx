@@ -33,7 +33,9 @@ import {
 } from "@/components/ui/select";
 import { formatDate, useWeekPlan } from "@/hooks/use-week-plan";
 import { useTaskActions } from "@/hooks/use-tasks";
-import { projects, weekDays, workers, type Task } from "@/lib/rootline-data";
+import { useProjects, useWorkers } from "@/hooks/use-data";
+import { weekDays } from "@/lib/labels";
+import type { Task } from "@/lib/types";
 
 export const Route = createFileRoute("/schedule")({
   head: () => ({
@@ -71,7 +73,7 @@ const KINDS: Task["kind"][] = [
 function Schedule() {
   const taskActions = useTaskActions();
   const week = useWeekPlan();
-  const { weekDates, strip, weather } = week;
+  const { weekDates, strip, weather, workers } = week;
   // tasks as the plan stands: stored tasks with the live weather rules applied
   const tasks = week.adjusted;
   const [view, setView] = useState<"day" | "week">("day");
@@ -361,6 +363,7 @@ function HourColumn() {
 }
 
 function TaskBlock({ task, onClick }: { task: Task; onClick: () => void }) {
+  const workers = useWorkers();
   const worker = workers.find((w) => w.id === task.workerId);
   const color = worker?.color ?? "var(--chart-1)";
   return (
@@ -408,6 +411,7 @@ function TaskDialog({
   onClose: () => void;
 }) {
   const taskActions = useTaskActions();
+  const workers = useWorkers();
   if (!task) return null;
   return (
     <Dialog open={open} onOpenChange={(o) => (o ? null : onClose())}>
@@ -570,9 +574,14 @@ function NewTaskDialog({
   onClose: () => void;
 }) {
   const taskActions = useTaskActions();
+  const projects = useProjects();
+  const workers = useWorkers();
   const [title, setTitle] = useState("");
-  const [projectId, setProjectId] = useState(projects[0]?.id ?? "p1");
-  const [workerId, setWorkerId] = useState(workers[0]?.id ?? "w1");
+  // Empty until picked — then default to the first site/worker once the lists have loaded.
+  const [pickedProject, setProjectId] = useState("");
+  const [pickedWorker, setWorkerId] = useState("");
+  const projectId = pickedProject || projects[0]?.id || "";
+  const workerId = pickedWorker || workers[0]?.id || "";
   const [start, setStart] = useState("8");
   const [duration, setDuration] = useState("2");
   const [kind, setKind] = useState<Task["kind"]>("Watering");

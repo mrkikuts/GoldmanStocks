@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { listTasks } from "@/lib/api/tasks";
 import { listWorkers } from "@/lib/api/workers";
-import { weekDays } from "@/lib/rootline-data";
+import { weekDays } from "@/lib/labels";
 
 export const Route = createFileRoute("/workers")({
   head: () => ({

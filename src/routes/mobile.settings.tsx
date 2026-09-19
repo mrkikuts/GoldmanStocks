@@ -5,8 +5,12 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { workers } from "@/lib/rootline-data";
-import { setActiveWorker, useActiveWorker, workerProjects } from "@/lib/worker-store";
+import { useWorkers } from "@/hooks/use-data";
+import {
+  setActiveWorker,
+  useActiveWorker,
+  useWorkerProjects,
+} from "@/lib/worker-store";
 
 export const Route = createFileRoute("/mobile/settings")({
   component: MobileSettings,
@@ -15,12 +19,14 @@ export const Route = createFileRoute("/mobile/settings")({
       { title: "Settings — Goldman Stocks worker app" },
       {
         name: "description",
-        content: "Who is using this phone, app language and photo & location options.",
+        content:
+          "Who is using this phone, app language and photo & location options.",
       },
       { property: "og:title", content: "Settings — Goldman Stocks worker app" },
       {
         property: "og:description",
-        content: "Who is using this phone, app language and photo & location options.",
+        content:
+          "Who is using this phone, app language and photo & location options.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -36,7 +42,9 @@ const languages = [
 
 function MobileSettings() {
   const activeWorker = useActiveWorker();
-  const workerId = activeWorker.id;
+  const workerId = activeWorker?.id;
+  const workers = useWorkers();
+  const mySites = useWorkerProjects(workerId);
   const [language, setLanguage] = useState("ET");
   const [geoTag, setGeoTag] = useState(true);
   const [reminders, setReminders] = useState(true);
@@ -44,9 +52,15 @@ function MobileSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.12em] text-accent-foreground">Worker preferences</p>
-        <h1 className="font-display text-3xl font-bold text-primary">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Saved on this phone.</p>
+        <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.12em] text-accent-foreground">
+          Worker preferences
+        </p>
+        <h1 className="font-display text-3xl font-bold text-primary">
+          Settings
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Saved on this phone.
+        </p>
       </div>
 
       <section className="space-y-4 rounded-lg border bg-card p-4 shadow-card">
@@ -69,14 +83,17 @@ function MobileSettings() {
                   : "bg-background text-muted-foreground shadow-none"
               }`}
             >
-              <span className="size-2.5 rounded-full" style={{ backgroundColor: w.color }} />
+              <span
+                className="size-2.5 rounded-full"
+                style={{ backgroundColor: w.color }}
+              />
               {w.name}
             </Button>
           ))}
         </div>
         <p className="text-xs text-muted-foreground">
-          The app only shows {activeWorker.name.split(" ")[0]}'s sites, jobs and plants —{" "}
-          {workerProjects(workerId).length} site(s) right now.
+          The app only shows {activeWorker?.name.split(" ")[0]}'s sites, jobs
+          and plants — {mySites.length} site(s) right now.
         </p>
       </section>
 
@@ -114,7 +131,11 @@ function MobileSettings() {
               </p>
             </div>
           </div>
-          <Switch checked={geoTag} onCheckedChange={setGeoTag} aria-label="Stamp photos with location" />
+          <Switch
+            checked={geoTag}
+            onCheckedChange={setGeoTag}
+            aria-label="Stamp photos with location"
+          />
         </div>
         <div className="flex items-center justify-between gap-3 p-4">
           <div className="flex items-start gap-3">
@@ -126,7 +147,11 @@ function MobileSettings() {
               </p>
             </div>
           </div>
-          <Switch checked={reminders} onCheckedChange={setReminders} aria-label="Morning job reminders" />
+          <Switch
+            checked={reminders}
+            onCheckedChange={setReminders}
+            aria-label="Morning job reminders"
+          />
         </div>
       </section>
 

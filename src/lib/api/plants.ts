@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import type { Plant } from "../rootline-data";
+import type { Plant } from "../types";
 import { clientNameByProject } from "./lookups";
 import { toPlant } from "./mappers";
 import { getAuthedClient } from "./session";

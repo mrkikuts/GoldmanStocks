@@ -1,10 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { projects } from "@/lib/rootline-data";
+import { getAuthedClient } from "@/lib/api/session";
 import {
-  defaultWeatherCache,
   fetchOpenMeteoJson,
   loadForecasts,
+  supabaseWeatherCache,
   trimToPlanWindow,
 } from "@/lib/server/weather";
 
@@ -13,13 +13,27 @@ import {
 
 export type { WeekWeather } from "@/lib/server/weather";
 
-/** This week's forecast for every project site. */
+/**
+ * This week's forecast for every site, at the sites' coordinates in the database (so a site
+ * added or moved on the map gets its own forecast). Cached in `weather_cache` for 3 hours.
+ */
 export const getWeekWeather = createServerFn({ method: "GET" }).handler(
   async () => {
     const now = new Date();
+    const db = await getAuthedClient();
+    const { data: sites, error } = await db
+      .from("projects")
+      .select("id, lat, lng")
+      .order("id");
+    if (error) throw new Error(error.message);
+
     const week = await loadForecasts(
-      projects.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng })),
-      defaultWeatherCache,
+      (sites ?? []).map((p) => ({
+        id: p.id,
+        lat: Number(p.lat),
+        lng: Number(p.lng),
+      })),
+      supabaseWeatherCache(db),
       fetchOpenMeteoJson,
       now,
     );

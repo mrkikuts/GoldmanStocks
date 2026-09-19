@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { PlantCalendar } from "@/components/PlantCalendar";
-import { plants, type PlantStatus } from "@/lib/rootline-data";
-import { useActiveWorker, workerProjects } from "@/lib/worker-store";
+import { usePlants } from "@/hooks/use-data";
+import type { PlantStatus } from "@/lib/types";
+import { useActiveWorker, useWorkerProjects } from "@/lib/worker-store";
 
 const dotClass: Record<PlantStatus, string> = {
   healthy: "bg-status-healthy",
@@ -19,10 +20,11 @@ export const Route = createFileRoute("/mobile/plants")({
 
 function MobilePlants() {
   const worker = useActiveWorker();
-  const myProjects = workerProjects(worker.id);
+  const myProjects = useWorkerProjects(worker?.id);
+  const plants = usePlants();
   const myPlants = useMemo(
     () => plants.filter((p) => myProjects.some((pr) => pr.id === p.projectId)),
-    [myProjects],
+    [plants, myProjects],
   );
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -31,7 +33,9 @@ function MobilePlants() {
     const q = query.trim().toLowerCase();
     return myPlants.filter((p) =>
       q
-        ? [p.id, p.species, p.common, p.client, p.site].some((v) => v.toLowerCase().includes(q))
+        ? [p.id, p.species, p.common, p.client, p.site].some((v) =>
+            v.toLowerCase().includes(q),
+          )
         : true,
     );
   }, [query, myPlants]);
@@ -51,7 +55,9 @@ function MobilePlants() {
           <X className="size-3.5" /> Close calendar
         </Button>
         <div>
-          <p className="font-display text-2xl font-bold text-primary">{open.common}</p>
+          <p className="font-display text-2xl font-bold text-primary">
+            {open.common}
+          </p>
           <p className="text-xs text-muted-foreground">
             {open.id} · {open.species}
           </p>
@@ -67,10 +73,15 @@ function MobilePlants() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.12em] text-accent-foreground">Care register</p>
-        <h1 className="font-display text-3xl font-bold text-primary">Plants & areas</h1>
+        <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.12em] text-accent-foreground">
+          Care register
+        </p>
+        <h1 className="font-display text-3xl font-bold text-primary">
+          Plants & areas
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {results.length} of {myPlants.length} items on {worker.name.split(" ")[0]}'s sites
+          {results.length} of {myPlants.length} items on{" "}
+          {worker?.name.split(" ")[0]}'s sites
         </p>
       </div>
 
@@ -101,7 +112,9 @@ function MobilePlants() {
                     onClick={() => setOpenId(p.id)}
                     className="flex w-full items-center gap-3 border-b p-3.5 text-left transition-colors hover:bg-secondary/60 last:border-b-0"
                   >
-                    <span className={`size-2.5 shrink-0 rounded-full ${dotClass[p.status]}`} />
+                    <span
+                      className={`size-2.5 shrink-0 rounded-full ${dotClass[p.status]}`}
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{p.common}</p>
                       <p className="truncate text-xs text-muted-foreground">

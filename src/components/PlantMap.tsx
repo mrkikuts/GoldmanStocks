@@ -1,6 +1,7 @@
 import { useState } from "react";
 
-import { statusLabel, type Plant } from "@/lib/rootline-data";
+import { statusLabel } from "@/lib/labels";
+import type { Plant } from "@/lib/types";
 
 const statusColor: Record<Plant["status"], string> = {
   healthy: "var(--status-healthy)",
@@ -17,7 +18,12 @@ export function PlantMap({ plants }: { plants: Plant[] }) {
       <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl border bg-muted/40">
         <svg className="absolute inset-0 size-full" aria-hidden="true">
           <defs>
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <pattern
+              id="grid"
+              width="40"
+              height="40"
+              patternUnits="userSpaceOnUse"
+            >
               <path
                 d="M40 0H0V40"
                 fill="none"
@@ -63,9 +69,13 @@ export function PlantMap({ plants }: { plants: Plant[] }) {
               top: `calc(${active.y}% + 18px)`,
             }}
           >
-            <p className="font-mono text-[11px] text-muted-foreground">{active.id}</p>
+            <p className="font-mono text-[11px] text-muted-foreground">
+              {active.id}
+            </p>
             <p className="text-sm font-medium">{active.common}</p>
-            <p className="text-xs italic text-muted-foreground">{active.species}</p>
+            <p className="text-xs italic text-muted-foreground">
+              {active.species}
+            </p>
             <p className="mt-2 text-xs text-muted-foreground">{active.site}</p>
             <p className="text-xs">
               Next: {active.nextTask} · {active.nextCare}

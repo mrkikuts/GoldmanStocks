@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import type { Task } from "../rootline-data";
+import type { Task } from "../types";
 import { clientNameByProject } from "./lookups";
 import { toTask } from "./mappers";
 import { getAuthedClient } from "./session";

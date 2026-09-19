@@ -41,6 +41,12 @@ export type Plant = {
   /** map position in percent of the site plan, 0–100 */
   x: number;
   y: number;
+  /** real GPS position — from migration 0003 onwards; otherwise derived from x/y (see geo.ts) */
+  lat?: number;
+  lng?: number;
+  /** ISO dates behind the "12 Sep" display strings above */
+  lastCareDate?: string;
+  nextCareDate?: string;
 };
 
 export type Client = {
@@ -76,7 +82,8 @@ export type Task = {
   day: number; // 0 = Monday
   start: number; // hour, 24h
   duration: number; // hours
-  kind: "Watering" | "Clipping" | "Mowing" | "Planting" | "Inspection" | "Feeding";
+  kind:
+    "Watering" | "Clipping" | "Mowing" | "Planting" | "Inspection" | "Feeding";
   weatherNote?: string;
   status: "planned" | "done" | "skipped";
   /** ISO timestamp — set when the boss approves the day's plan */

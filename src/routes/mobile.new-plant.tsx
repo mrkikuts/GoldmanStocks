@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { setCaptureHandler } from "@/lib/photo-store";
-import { useActiveWorker, workerProjects } from "@/lib/worker-store";
+import { useActiveWorker, useWorkerProjects } from "@/lib/worker-store";
 
 export const Route = createFileRoute("/mobile/new-plant")({
   component: NewPlant,
@@ -13,7 +13,10 @@ export const Route = createFileRoute("/mobile/new-plant")({
 const kinds = ["Tree", "Hedge", "Lawn", "Flower bed", "Shrub"] as const;
 
 // Stand-in for the photo species recognition — shows what the worker would see.
-const guesses: Record<(typeof kinds)[number], { species: string; common: string }> = {
+const guesses: Record<
+  (typeof kinds)[number],
+  { species: string; common: string }
+> = {
   Tree: { species: "Tilia cordata", common: "Small-leaved lime" },
   Hedge: { species: "Thuja occidentalis", common: "White cedar" },
   Lawn: { species: "Lolium perenne", common: "Ryegrass" },
@@ -27,10 +30,12 @@ function NewPlant() {
   const [photo, setPhoto] = useState<string | null>(null);
   const [kind, setKind] = useState<(typeof kinds)[number]>("Tree");
   const worker = useActiveWorker();
-  const projects = workerProjects(worker.id);
+  const projects = useWorkerProjects(worker?.id);
   const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
   const [zone, setZone] = useState("");
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
+    null,
+  );
   const [locating, setLocating] = useState(false);
 
   const project = projects.find((p) => p.id === projectId) ?? projects[0];
@@ -104,12 +109,18 @@ function NewPlant() {
 
       {photo ? (
         <div className="overflow-hidden rounded-xl border bg-card">
-          <img src={photo} alt="New plant" className="h-48 w-full object-cover" />
+          <img
+            src={photo}
+            alt="New plant"
+            className="h-48 w-full object-cover"
+          />
           <div className="flex items-center gap-2 p-3">
             <Leaf className="size-4 shrink-0 text-primary" />
             <div className="min-w-0 flex-1 text-sm">
               <p className="font-medium">{guess.common}</p>
-              <p className="truncate text-xs italic text-muted-foreground">{guess.species}</p>
+              <p className="truncate text-xs italic text-muted-foreground">
+                {guess.species}
+              </p>
             </div>
             <button
               type="button"
@@ -132,7 +143,9 @@ function NewPlant() {
       )}
 
       <section className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Kind</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Kind
+        </p>
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
           {kinds.map((k) => (
             <button
@@ -140,7 +153,9 @@ function NewPlant() {
               type="button"
               onClick={() => setKind(k)}
               className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${
-                k === kind ? "border-primary bg-primary/10 text-primary" : "bg-card"
+                k === kind
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "bg-card"
               }`}
             >
               {k}
@@ -150,7 +165,9 @@ function NewPlant() {
       </section>
 
       <section className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Site</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Site
+        </p>
         <select
           value={projectId}
           onChange={(e) => setProjectId(e.target.value)}

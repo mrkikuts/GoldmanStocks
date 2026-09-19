@@ -14,7 +14,8 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { setCaptureHandler } from "@/lib/photo-store";
-import { weekDays, type Task } from "@/lib/rootline-data";
+import { weekDays } from "@/lib/labels";
+import type { Task } from "@/lib/types";
 import { useTaskActions } from "@/hooks/use-tasks";
 import { formatDate, useWeekPlan } from "@/hooks/use-week-plan";
 import { useActiveWorker } from "@/lib/worker-store";
