@@ -155,6 +155,61 @@ No `bun` installed? `npx bun@1.4.2 <command>` works the same.
 - **First print styling in the app.** `print:` variants on `AppShell` hide the sidebar and nav;
   `src/styles.css` carries the `@page` margin and colour-adjust rules Tailwind can't express.
 
+### 8. The Lovable redesign, merged in
+
+Lovable produced a new front end (exported to `lovable-new-frontend/`, gitignored). It was branched
+from `lovable-edits` — *before* the backend existed — so it was a mock-data app: no Supabase, no
+forms, no map, no report. It was **not** copied over. The design was ported onto the live screens
+and the mock-data half was left behind.
+
+**Taken:** the Apple system type stack (the Playfair/Inter webfont request is gone from
+`__root.tsx`), five categorical `--data-*` colour tokens, the `rise-in` entrance and
+`<AnimatedGroup>` (`src/components/motion/`, CSS-only — no animation library), the compact
+dashboard, the sticky-ID plants table, and the new AppShell.
+
+**Deliberately not taken**, because each would have reverted a fix:
+
+| From the export | Why it stayed out |
+| --- | --- |
+| `package.json` | drops `@supabase/*`, `leaflet`, `openai`; adds `motion`, which nothing imports |
+| `.gitignore` | has no `.env` rule at all |
+| `badge.tsx` | reverts `<span>`→`<div>`, the hydration bug fixed in section 3 |
+| `projects.$projectId.tsx` | the old filename, whose page never rendered |
+| `goldman-stocks-logo.png.asset.json` | Lovable-hosted URL, 404s anywhere else |
+| `styles.css` print block | the export deleted it; the report needs it |
+| `tsconfig`/`vite.config` | drop `scripts/**` and the `LOVABLE_PREVIEW_HOST` shim |
+| the 5 `mobile.*` routes, `worker-store`, `PlantMap` | untouched by Lovable — stale pre-Supabase copies |
+
+**AppShell active state** is now matched on the path, not `data-[status=active]`: the detail pages
+are *siblings* of their list route (`projects_.$projectId`), so the router never marked "Projects"
+active while you were on `/projects/p1`.
+
+### 9. Month view, and what a task's date means
+
+The schedule gained a third view, **Month**, and with it `tasks.date` (migration 0004,
+**not yet applied** — TODO item 5).
+
+**A task is still a recurring weekly template.** `day` (0-6) + `start` hour, repeating every week —
+that is what the worker app, the day and week views and the planner have always read. `date` is
+optional and makes a task a **one-off** on that calendar date instead. Both kinds share the table.
+
+- **`src/lib/task-schedule.ts`** is the single answer to "what is on this date": `taskDateIn` (an
+  undated task takes the week's date for its weekday) and `inWeek`. It sits outside
+  `src/lib/server/` on purpose — routes, components and hooks all need it.
+- **`day` is kept in step with `date`** server-side (`weekdayFromDate` in `src/lib/api/tasks.ts`),
+  so nothing that reads `day` had to change.
+- **This was the subtle part:** a job dated in November still carries a weekday, so without
+  filtering it would be planned, weathered and counted as if it were this week. `useWeekPlan` now
+  feeds the planner `inWeek` tasks only, and `workers.tsx`, `mobile.index.tsx` and
+  `projects_.$projectId.tsx` filter the same way. The month grid is the one view that reads the
+  full list.
+- **Local date strings throughout** (`YYYY-MM-DD` built from parts, never `toISOString`) — the
+  month grid is built in local time and UTC would shift days across the boundary.
+- **Approve** acts on the selected date in month view, on the day or week otherwise.
+  **Plan with AI** is hidden in month view: the planner works a weekday at a time against this
+  week's forecast and has nothing to say about a future month.
+- Tests: `src/lib/task-schedule.test.ts` (7 tests) pins the two helpers, weekend dates included.
+
 ## Conventions to keep (these bit us)
 
 1. **Never import from `src/lib/server/` in browser code**, meaning routes, components and hooks. TanStack

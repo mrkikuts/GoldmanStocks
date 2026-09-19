@@ -9,6 +9,8 @@ import {
   Clock,
   TrendingUp,
   ArrowRight,
+  AlertTriangle,
+  CircleCheck,
   Loader2,
   Sparkles,
 } from "lucide-react";
@@ -16,6 +18,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
+import { AnimatedGroup } from "@/components/motion/AnimatedGroup";
 import { StatusDot } from "@/components/StatusDot";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -229,44 +232,140 @@ function Dashboard() {
         </Button>
       }
     >
-      <div className="grid gap-4 lg:grid-cols-4">
-        <Stat
-          icon={Leaf}
-          label="Plants needing care today"
-          value={String(due.length)}
-          hint={`${overdue.length} overdue`}
-        />
-        <Stat
-          icon={CloudRain}
-          label="Tasks skipped by weather"
-          value={String(weatherSkips)}
-          hint={
-            rainOvernight === null
-              ? weather.isPending
-                ? "Loading forecast…"
-                : "No forecast"
-              : `${rainOvernight} mm rain overnight`
-          }
-        />
-        <Stat
-          icon={Clock}
-          label="Planned hours today"
-          value={String(plannedHours)}
-          hint={`across ${onShift.length} workers`}
-        />
-        <Stat
-          icon={TrendingUp}
-          label="Repeat work ready to offer"
-          value={`€${pipeline.toLocaleString("en-GB")}`}
-          hint={`${opportunities.length} clients`}
-        />
-      </div>
+      <AnimatedGroup
+        className="grid gap-4 xl:grid-cols-[1.55fr_0.85fr]"
+        delay={0.04}
+      >
+        <Card className="overflow-hidden shadow-card">
+          <CardHeader className="flex-row items-start justify-between space-y-0 border-b p-5">
+            <div>
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">
+                Today at a glance
+              </p>
+              <CardTitle className="mt-2 text-2xl">
+                {due.length} {due.length === 1 ? "plant needs" : "plants need"}{" "}
+                care
+              </CardTitle>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {overdue.length === 0
+                  ? "Nothing overdue — the day's plan is current"
+                  : `${overdue.length} overdue ${overdue.length === 1 ? "task requires" : "tasks require"} a decision before crews leave`}
+              </p>
+            </div>
+            <span className="rounded-md bg-data-lime/12 px-2 py-1 text-[11px] font-semibold text-primary">
+              Live
+            </span>
+          </CardHeader>
+          <CardContent className="p-0">
+            {/* Proportional strip: each metric's share of the day's signals. */}
+            <div className="flex h-1 w-full">
+              <span className="flex-1 bg-data-violet" />
+              <span className="flex-1 bg-data-cyan" />
+              <span className="flex-1 bg-data-gold" />
+              <span className="flex-1 bg-data-coral" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4">
+              <TopMetric
+                icon={Leaf}
+                label="Care today"
+                value={String(due.length)}
+                note={`${overdue.length} overdue`}
+                color="violet"
+              />
+              <TopMetric
+                icon={CloudRain}
+                label="Weather held"
+                value={String(weatherSkips)}
+                note={
+                  rainOvernight === null
+                    ? weather.isPending
+                      ? "Loading forecast…"
+                      : "No forecast"
+                    : `${rainOvernight} mm overnight`
+                }
+                color="cyan"
+              />
+              <TopMetric
+                icon={Clock}
+                label="Crew hours"
+                value={String(plannedHours)}
+                note={`${onShift.length} ${onShift.length === 1 ? "worker" : "workers"}`}
+                color="gold"
+              />
+              <TopMetric
+                icon={approved ? CircleCheck : Sparkles}
+                label="AI plan"
+                value={approved ? "Ready" : "Review"}
+                note={approved ? "Sent to crew" : "Awaiting approval"}
+                color="coral"
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-      <Card className="mt-6 shadow-card">
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle className="text-base">
-            This week's weather, applied to the plan
-          </CardTitle>
+        <Card className="overflow-hidden shadow-card">
+          <CardHeader className="flex-row items-center justify-between space-y-0 p-5 pb-2">
+            <div>
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">
+                Repeat work ready
+              </p>
+              <CardTitle className="mt-2 text-2xl">
+                €{pipeline.toLocaleString("en-GB")}
+              </CardTitle>
+            </div>
+            <div className="flex size-10 items-center justify-center rounded-lg bg-data-cyan/12 text-data-cyan">
+              <TrendingUp className="size-5" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-5 pb-5">
+            <p className="text-xs text-muted-foreground">
+              Coming due across {opportunities.length}{" "}
+              {opportunities.length === 1 ? "client" : "clients"}
+            </p>
+            {opportunities.length > 0 ? (
+              <div
+                className="mt-5 flex h-12 items-end gap-1"
+                aria-label="Opportunity value by client"
+              >
+                {opportunities.map((o) => {
+                  const max = Math.max(...opportunities.map((x) => x.value));
+                  return (
+                    <span
+                      key={o.projectId}
+                      title={`${o.client} · €${o.value}`}
+                      className="flex-1 rounded-t-sm bg-data-violet/20"
+                      style={{
+                        height: `${Math.max(12, (o.value / max) * 100)}%`,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="mt-5 flex h-12 items-center text-xs text-muted-foreground">
+                Nothing coming due in the next two weeks.
+              </div>
+            )}
+            <div className="mt-3 flex items-center justify-between border-t pt-3 text-xs">
+              <span className="text-muted-foreground">Drafts waiting</span>
+              <span className="font-semibold text-primary">
+                {pending.length}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </AnimatedGroup>
+
+      <Card className="mt-4 shadow-card">
+        <CardHeader className="flex-row items-center justify-between space-y-0 p-5 pb-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase text-muted-foreground">
+              Care forecast
+            </p>
+            <CardTitle className="mt-2 text-base">
+              This week's weather, applied to the plan
+            </CardTitle>
+          </div>
           {weather.data?.stale ? (
             <Badge variant="outline" className="text-status-attention">
               offline — forecast from{" "}
@@ -277,10 +376,10 @@ function Dashboard() {
             </Badge>
           ) : null}
         </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-5">
+        <CardContent className="grid gap-2 px-5 pb-5 sm:grid-cols-5">
           {weather.isPending ? (
             weekDates.map((d) => (
-              <Skeleton key={d} className="h-[104px] rounded-xl" />
+              <Skeleton key={d} className="h-[104px] rounded-md" />
             ))
           ) : weather.isError ? (
             <p className="text-sm text-muted-foreground sm:col-span-5">
@@ -293,21 +392,23 @@ function Dashboard() {
               return (
                 <div
                   key={w.day}
-                  className={`rounded-xl border bg-muted/40 p-3 ${i === today ? "border-primary" : ""}`}
+                  className={`rounded-md border bg-secondary/50 p-3 ${i === today ? "border-data-violet/40 bg-data-violet/5" : ""}`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">
+                    <span className="text-[11px] font-semibold uppercase">
                       {w.day}{" "}
-                      <span className="text-xs font-normal text-muted-foreground">
+                      <span className="font-normal text-muted-foreground">
                         {formatDate(weekDates[i] ?? "")}
                       </span>
                     </span>
-                    <Icon className="size-4 text-muted-foreground" />
+                    <Icon className="size-3.5 text-muted-foreground" />
                   </div>
-                  <p className="mt-1 text-2xl font-semibold">
+                  <p className="mt-2 text-xl font-bold">
                     {w.temp === null ? "—" : `${w.temp}°`}
                   </p>
-                  <p className="mt-1 text-xs text-muted-foreground">{w.note}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {w.note}
+                  </p>
                 </div>
               );
             })
@@ -315,62 +416,108 @@ function Dashboard() {
         </CardContent>
       </Card>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card className="shadow-card lg:col-span-2">
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle className="text-base">Today's plan by worker</CardTitle>
+      <div className="mt-4 grid gap-4 lg:grid-cols-12">
+        <Card
+          className="animate-rise shadow-card lg:col-span-8"
+          style={{ animationDelay: "0.12s" }}
+        >
+          <CardHeader className="flex-row items-center justify-between space-y-0 p-5 pb-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">
+                Crew operations
+              </p>
+              <CardTitle className="mt-2 text-base">
+                Today's plan by worker
+              </CardTitle>
+            </div>
             <Link
               to="/schedule"
-              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
             >
               Open calendar <ArrowRight className="size-3.5" />
             </Link>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {proposal.byWorker.map((plan) => (
+          <CardContent className="grid gap-2 px-5 pb-5 sm:grid-cols-2">
+            {proposal.byWorker.map((plan, i) => (
               <WorkerPlan
                 key={plan.workerId}
                 plan={plan}
                 worker={workers.find((w) => w.id === plan.workerId)}
+                accent={workerAccents[i % workerAccents.length]!}
               />
             ))}
           </CardContent>
         </Card>
 
-        <div className="space-y-6">
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle className="text-base">Plants at risk</CardTitle>
+        <div className="space-y-4 lg:col-span-4">
+          <Card
+            className="animate-rise shadow-card"
+            style={{ animationDelay: "0.18s" }}
+          >
+            <CardHeader className="flex-row items-center justify-between space-y-0 p-5 pb-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase text-muted-foreground">
+                  Needs attention
+                </p>
+                <CardTitle className="mt-2 text-base">Plants at risk</CardTitle>
+              </div>
+              <AlertTriangle className="size-4 text-data-coral" />
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2 px-5 pb-5">
+              {critical.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No plants are in a critical state.
+                </p>
+              ) : null}
               {critical.map((p) => (
-                <div key={p.id} className="rounded-lg border p-3">
-                  <p className="text-sm font-medium">{p.common}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {p.client} · {p.site}
-                  </p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <StatusDot status={p.status} />
-                    <span className="text-xs text-muted-foreground">
-                      {p.nextTask}
-                    </span>
+                <div
+                  key={p.id}
+                  className="flex items-center gap-3 rounded-md border p-3"
+                >
+                  <StatusDot status={p.status} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{p.common}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      {p.client} · {p.site}
+                    </p>
                   </div>
+                  <span className="text-[10px] whitespace-nowrap text-muted-foreground">
+                    {p.nextTask}
+                  </span>
                 </div>
               ))}
               <Link
                 to="/plants"
-                className="block text-sm text-primary hover:underline"
+                className="inline-flex items-center gap-1 pt-2 text-xs font-semibold text-primary hover:underline"
               >
-                See all plants
+                See all plants <ArrowRight className="size-3" />
               </Link>
             </CardContent>
           </Card>
 
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle className="text-base">Repeat work to offer</CardTitle>
+          <Card
+            className="animate-rise shadow-card"
+            style={{ animationDelay: "0.24s" }}
+          >
+            <CardHeader className="flex-row items-start justify-between space-y-0 p-5 pb-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase text-muted-foreground">
+                  Commercial
+                </p>
+                <CardTitle className="mt-2 text-base">
+                  Repeat work to offer
+                </CardTitle>
+              </div>
+              <div className="text-right">
+                <p className="text-xl font-bold">
+                  €{pipeline.toLocaleString("en-GB")}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  ready pipeline
+                </p>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 px-5 pb-5">
               {opportunities.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   Nothing coming due in the next two weeks.
@@ -382,10 +529,12 @@ function Dashboard() {
                     className="flex items-start justify-between gap-3"
                   >
                     <div>
-                      <p className="text-sm font-medium">{o.client}</p>
-                      <p className="text-xs text-muted-foreground">{o.what}</p>
+                      <p className="text-xs font-semibold">{o.client}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {o.what}
+                      </p>
                     </div>
-                    <span className="text-sm font-semibold whitespace-nowrap">
+                    <span className="text-xs font-semibold whitespace-nowrap">
                       €{o.value}
                     </span>
                   </div>
@@ -421,27 +570,33 @@ function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle className="text-base">Clients</CardTitle>
+          <Card
+            className="animate-rise shadow-card"
+            style={{ animationDelay: "0.3s" }}
+          >
+            <CardHeader className="p-5 pb-3">
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">
+                Portfolio
+              </p>
+              <CardTitle className="mt-2 text-base">Client activity</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-2 px-5 pb-5">
               {clients.slice(0, 4).map((c) => (
                 <div
                   key={c.id}
-                  className="flex items-center justify-between text-sm"
+                  className="flex items-center justify-between border-b pb-2 text-xs last:border-0"
                 >
-                  <span>{c.name}</span>
-                  <span className="text-muted-foreground">
+                  <span className="truncate">{c.name}</span>
+                  <span className="ml-2 font-semibold text-muted-foreground">
                     {c.hoursThisMonth} h
                   </span>
                 </div>
               ))}
               <Link
                 to="/clients"
-                className="block text-sm text-primary hover:underline"
+                className="inline-flex items-center gap-1 pt-2 text-xs font-semibold text-primary hover:underline"
               >
-                Client list
+                Client list <ArrowRight className="size-3" />
               </Link>
             </CardContent>
           </Card>
@@ -562,53 +717,75 @@ function Dashboard() {
   );
 }
 
+/** One dot colour per worker card, so the crew grid reads at a glance. */
+const workerAccents = [
+  "bg-data-violet",
+  "bg-data-cyan",
+  "bg-data-gold",
+  "bg-data-coral",
+  "bg-data-lime",
+] as const;
+
 function WorkerPlan({
   plan,
   worker,
+  accent,
 }: {
   plan: DayPlan;
   worker: Worker | undefined;
+  accent: string;
 }) {
   return (
-    <div className="rounded-xl border p-3">
-      <div className="flex items-center justify-between">
-        <p className="font-medium">{worker?.name ?? plan.workerId}</p>
-        <span className="text-xs text-muted-foreground">
+    <div className="rounded-md border p-3 transition-colors hover:bg-secondary/45">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className={`size-2 shrink-0 rounded-full ${accent}`} />
+          <p className="truncate text-sm font-semibold">
+            {worker?.name ?? plan.workerId}
+          </p>
+        </div>
+        <span className="text-[11px] whitespace-nowrap text-muted-foreground">
           {plan.hours} h · {plan.stops.length} stops
           {plan.km > 0 ? ` · ${plan.km} km` : ""}
         </span>
       </div>
-      <ul className="mt-2 space-y-1.5">
+      <ul className="mt-3 space-y-2 border-t pt-3">
         {plan.stops.length === 0 && plan.skipped.length === 0 ? (
-          <li className="text-sm text-muted-foreground">
+          <li className="text-xs text-muted-foreground">
             No tasks — available
           </li>
         ) : null}
         {plan.stops.map((t) => (
-          <li key={t.id} className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="tabular-nums text-muted-foreground">
+          <li key={t.id} className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="font-medium tabular-nums text-muted-foreground">
               {String(t.start).padStart(2, "0")}:00
             </span>
-            <span>{t.title}</span>
-            <span className="text-muted-foreground">· {t.client}</span>
+            <span className="min-w-0 flex-1 truncate">{t.title}</span>
             {t.weatherNote ? (
-              <Badge variant="outline" className="text-status-attention">
+              <Badge
+                variant="outline"
+                className="border-data-gold/30 text-status-attention"
+              >
                 {t.weatherNote}
               </Badge>
             ) : null}
             {t.status === "done" ? (
-              <CheckCircle2 className="size-4 text-status-healthy" />
+              <CheckCircle2 className="size-3.5 text-status-healthy" />
             ) : null}
           </li>
         ))}
         {plan.skipped.map((t) => (
           <li
             key={t.id}
-            className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground"
+            className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
           >
-            <span className="line-through">{t.title}</span>
-            <span>· {t.client}</span>
-            <Badge variant="outline" className="text-status-attention">
+            <span className="min-w-0 flex-1 truncate line-through">
+              {t.title}
+            </span>
+            <Badge
+              variant="outline"
+              className="border-data-gold/30 text-status-attention"
+            >
               {t.weatherNote ?? "skipped"}
             </Badge>
           </li>
@@ -618,27 +795,39 @@ function WorkerPlan({
   );
 }
 
-function Stat({
+function TopMetric({
   icon: Icon,
   label,
   value,
-  hint,
+  note,
+  color,
 }: {
   icon: typeof Leaf;
   label: string;
   value: string;
-  hint: string;
+  note: string;
+  color: "violet" | "cyan" | "gold" | "coral";
 }) {
+  const colors = {
+    violet: "bg-data-violet/12 text-data-violet",
+    cyan: "bg-data-cyan/12 text-data-cyan",
+    gold: "bg-data-gold/15 text-status-attention",
+    coral: "bg-data-coral/12 text-data-coral",
+  };
   return (
-    <Card className="shadow-card">
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <Icon className="size-4 text-muted-foreground" />
-        </div>
-        <p className="mt-2 text-3xl font-semibold">{value}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
-      </CardContent>
-    </Card>
+    <div className="border-b p-4 last:border-b-0 sm:odd:border-r sm:[&:nth-child(3)]:border-b-0 sm:[&:nth-child(4)]:border-b-0 lg:border-b-0 lg:border-r lg:last:border-r-0">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-semibold uppercase text-muted-foreground">
+          {label}
+        </p>
+        <span
+          className={`flex size-7 items-center justify-center rounded-md ${colors[color]}`}
+        >
+          <Icon className="size-3.5" />
+        </span>
+      </div>
+      <p className="mt-3 text-xl font-bold text-foreground">{value}</p>
+      <p className="mt-1 text-[11px] text-muted-foreground">{note}</p>
+    </div>
   );
 }

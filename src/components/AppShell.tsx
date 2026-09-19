@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import {
   CalendarDays,
   Leaf,
@@ -22,6 +22,26 @@ const nav = [
   { to: "/workers", label: "Workers", icon: HardHat },
 ] as const;
 
+/** Current path without a trailing slash, so "/" is never mistaken for a child route. */
+function useCurrentPath() {
+  return useRouterState({
+    select: (router) => {
+      const path = router.location.pathname.replace(/\/+$/, "");
+      return path === "" ? "/" : path;
+    },
+  });
+}
+
+/**
+ * Matched on the path, not on `data-[status=active]`: the detail pages are siblings of their
+ * list route (`projects_.$projectId`, `clients_.$clientId.report`), so the router would not
+ * mark "Projects" active while you are on /projects/p1.
+ */
+function isItemActive(path: string, to: string) {
+  if (to === "/") return path === "/";
+  return path === to || path.startsWith(`${to}/`);
+}
+
 export function AppShell({
   title,
   subtitle,
@@ -33,37 +53,46 @@ export function AppShell({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  const currentPath = useCurrentPath();
+
   return (
     <div className="flex min-h-screen bg-background print:block print:min-h-0">
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-5 py-7 text-sidebar-foreground md:flex print:hidden">
-        <div className="flex items-center gap-3 px-2">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-4 py-5 text-sidebar-foreground md:flex print:hidden">
+        <div className="flex items-center gap-3 rounded-lg border border-sidebar-border px-3 py-3">
           <img
             src={logoUrl}
             alt="Goldman Stocks logo"
             className="size-9 rounded-lg object-cover shadow-sm"
           />
           <div>
-            <p className="font-display text-xl font-bold leading-none text-primary">
+            <p className="font-display text-sm font-bold leading-none text-primary">
               Goldman Stocks
             </p>
-            <p className="mt-1 text-[11px] font-medium text-muted-foreground">
-              Landscape management
+            <p className="mt-1 text-[10px] font-medium text-muted-foreground">
+              Management suite
             </p>
           </div>
         </div>
 
-        <nav className="mt-10 flex flex-col gap-1.5">
-          {nav.map(({ to, label, icon: Icon }) => (
-            <Link
-              key={to}
-              to={to}
-              activeOptions={{ exact: to === "/" }}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[status=active]:bg-sidebar-accent data-[status=active]:font-semibold data-[status=active]:text-primary"
-            >
-              <Icon className="size-4" />
-              {label}
-            </Link>
-          ))}
+        <nav className="mt-5 flex flex-col gap-1">
+          {nav.map(({ to, label, icon: Icon }) => {
+            const isActive = isItemActive(currentPath, to);
+            return (
+              <Link
+                key={to}
+                to={to}
+                aria-current={isActive ? "page" : undefined}
+                className={`relative flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
+                  isActive
+                    ? "bg-data-violet/10 font-semibold text-primary before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-data-violet"
+                    : ""
+                }`}
+              >
+                <Icon className="size-4" />
+                {label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="mt-auto space-y-3">
@@ -74,12 +103,10 @@ export function AppShell({
             <Smartphone className="size-4" />
             Worker app
           </Link>
-          <div className="rounded-lg border border-accent/20 bg-accent/10 p-4 text-xs text-foreground">
-            <p className="font-semibold text-accent-foreground">
-              AI plan ready
-            </p>
-            <p className="mt-1">
-              Today's routes for 4 workers are waiting for your approval.
+          <div className="rounded-lg border border-data-gold/25 bg-data-gold/10 p-4 text-xs text-foreground">
+            <p className="font-semibold text-foreground">AI plan ready</p>
+            <p className="mt-1 leading-relaxed text-muted-foreground">
+              Today's routes are waiting for your approval.
             </p>
           </div>
         </div>
@@ -87,29 +114,36 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur-xl print:static print:border-0 print:bg-transparent print:backdrop-blur-none">
-          <div className="flex flex-wrap items-end justify-between gap-4 px-6 py-6 lg:px-10">
+          <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 lg:px-8">
             <div>
-              <h1 className="text-3xl font-bold text-primary">{title}</h1>
+              <h1 className="text-xl font-bold text-foreground">{title}</h1>
               {subtitle ? (
-                <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
               ) : null}
             </div>
             {actions}
           </div>
           <nav className="flex gap-1 overflow-x-auto px-4 pb-3 md:hidden print:hidden">
-            {nav.map(({ to, label }) => (
-              <Link
-                key={to}
-                to={to}
-                activeOptions={{ exact: to === "/" }}
-                className="rounded-lg border px-3 py-1.5 text-xs font-medium whitespace-nowrap data-[status=active]:border-primary data-[status=active]:bg-primary data-[status=active]:text-primary-foreground"
-              >
-                {label}
-              </Link>
-            ))}
+            {nav.map(({ to, label }) => {
+              const isActive = isItemActive(currentPath, to);
+              return (
+                <Link
+                  key={to}
+                  to={to}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium whitespace-nowrap ${
+                    isActive
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : ""
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
           </nav>
         </header>
-        <main className="flex-1 px-6 py-7 lg:px-10 lg:py-8 print:px-0 print:py-0">
+        <main className="flex-1 px-5 py-5 lg:px-8 lg:py-6 print:px-0 print:py-0">
           {children}
         </main>
       </div>

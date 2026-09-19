@@ -99,7 +99,31 @@ Two limits worth knowing before showing it to anyone, both recorded in HANDOFF.m
 - `clients.hours_this_month` on `/clients` is a static seeded number and does not come from this
   report, so the two will not agree
 
-## 5. Deploy to Vercel (15 min)
+## 5. Apply migration 0004 — task dates (5 min)
+
+The schedule's **Month** view needs `tasks.date`. The code already ships and degrades safely: every
+write that carries a date retries without it when PostgREST answers `PGRST204`
+(`src/lib/api/tasks.ts`, the same trick `savePlant` used before 0003 landed). So until this is
+applied, the month grid renders and you can browse it, but **a task moved to a future date silently
+stays on its weekday** — the date is dropped on save.
+
+Apply it the way 0003 was applied — see [supabase/README.md](../supabase/README.md) →
+Applying migrations:
+
+```sql
+alter table tasks add column if not exists date date;
+create index if not exists tasks_date_idx on tasks (date);
+```
+
+**Verify:** `GET /rest/v1/tasks?select=id,date` returns 200 rather than
+`42703: column tasks.date does not exist`. Then in the app: **Schedule → Month**, click **+** on a
+day in a future month, add a job, and step away and back — it should still be there. If the column
+reads back missing after a schema change, run `notify pgrst, 'reload schema';`.
+
+Existing tasks are **not** backfilled, deliberately: a null date means "every week on `day`", which
+is what the day and week views and the worker app have always read.
+
+## 6. Deploy to Vercel (15 min)
 
 Follow [deploy-vercel.md](deploy-vercel.md): import the repo, set the env vars
 (`VITE_SUPABASE_*` are needed **at build time**) and deploy. `vercel.json` is already set up.
@@ -111,7 +135,7 @@ Follow [deploy-vercel.md](deploy-vercel.md): import the repo, set the env vars
 - the logo loads
 - `/clients/c1/report` renders and prints cleanly
 
-## 6. Security clean-up — now urgent (20 min)
+## 7. Security clean-up — now urgent (20 min)
 
 **Rotate everything.** The Supabase `service_role` JWT, the `sb_secret_` key, the anon and
 publishable keys, the database password and the OpenAI key have all been pasted into AI chat
@@ -131,7 +155,7 @@ transcripts. Rotate in this order:
 
 Nothing in the codebase requires pasting a secret to anyone: `.env` is read directly by `bun`.
 
-## 7. Nice to have
+## 8. Nice to have
 
 - **Confirm or drop the psql claim.** `supabase/README.md` now documents the Management API route
   and flags its old "psql can't reach this database" note as unconfirmed. One command settles it —

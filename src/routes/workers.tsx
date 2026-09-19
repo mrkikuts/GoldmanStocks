@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Pencil, Smartphone, UserPlus } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { WorkerDialog } from "@/components/forms/WorkerDialog";
@@ -10,7 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { listTasks } from "@/lib/api/tasks";
 import { listWorkers } from "@/lib/api/workers";
 import { weekDays } from "@/lib/labels";
+import { taskDateIn } from "@/lib/task-schedule";
 import type { Worker } from "@/lib/types";
+import { planWeekDates } from "@/lib/weather";
 import { setActiveWorker } from "@/lib/worker-store";
 
 export const Route = createFileRoute("/workers")({
@@ -42,6 +44,8 @@ function Workers() {
   // undefined = closed, null = new worker, a worker = editing them
   const [editing, setEditing] = useState<Worker | null | undefined>();
   const languages = [...new Set(workers.map((w) => w.language))].join(", ");
+  // The bars below are this week's workload, so a job dated in a future month is not counted.
+  const weekDates = useMemo(() => planWeekDates(new Date()), []);
 
   return (
     <AppShell
@@ -116,7 +120,10 @@ function Workers() {
                 <div className="flex gap-1.5">
                   {weekDays.map((d, i) => {
                     const dayHours = own
-                      .filter((t) => t.day === i)
+                      .filter(
+                        (t) =>
+                          taskDateIn(t, weekDates) === (weekDates[i] ?? ""),
+                      )
                       .reduce((s, t) => s + t.duration, 0);
                     return (
                       <div key={d} className="flex-1 text-center">

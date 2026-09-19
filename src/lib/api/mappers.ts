@@ -115,5 +115,8 @@ export function toTask(row: Row<"tasks">, clientName: string): Task {
     // plant-level location and makes an approved plan read back as unapproved.
     ...(row.plant_id ? { plantId: row.plant_id } : {}),
     ...(row.approved_at ? { approvedAt: row.approved_at } : {}),
+    // `date` is absent from the row until migration 0004 is applied; undefined then means the
+    // task is the recurring weekly template, which is exactly how the views read it.
+    ...(row.date ? { date: row.date } : {}),
   };
 }

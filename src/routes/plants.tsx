@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   CalendarDays,
   Camera,
+  ChevronUp,
   MapPin,
   Pencil,
   Plus,
@@ -158,98 +159,141 @@ function Plants() {
         ))}
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {groups.map(({ project, rows }) => {
           const crew = project.workerIds.flatMap((id) => {
             const name = workerNameById.get(id);
             return name ? [{ id, name }] : [];
           });
           return (
-            <Card key={project.id} className="shadow-card">
-              <CardHeader className="pb-3">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-base">{project.name}</CardTitle>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {rows.length} items · crew{" "}
-                      {crew.map((w) => w.name.split(" ")[0]).join(", ")}
-                    </p>
+            <section key={project.id} className="space-y-2">
+              <Card className="relative z-20 shadow-card">
+                <CardHeader className="px-4 py-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-base">
+                        {project.name}
+                      </CardTitle>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {rows.length} items · crew{" "}
+                        {crew.map((w) => w.name.split(" ")[0]).join(", ")}
+                      </p>
+                    </div>
+                    <Link
+                      to="/projects/$projectId"
+                      params={{ projectId: project.id }}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                    >
+                      <MapPin className="size-4" /> View map
+                    </Link>
                   </div>
-                  <Link
-                    to="/projects/$projectId"
-                    params={{ projectId: project.id }}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
-                  >
-                    <MapPin className="size-4" /> View map
-                  </Link>
-                </div>
-              </CardHeader>
-              <CardContent className="overflow-x-auto p-0 pb-4">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Plant / area</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Zone</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Last care</TableHead>
-                      <TableHead>Next task</TableHead>
-                      <TableHead className="text-right">Calendar</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-mono text-xs text-muted-foreground">
-                          {p.id}
-                        </TableCell>
-                        <TableCell>
-                          <p className="font-medium">{p.common}</p>
-                          <p className="text-xs italic text-muted-foreground">
-                            {p.species}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{p.kind}</Badge>
-                        </TableCell>
-                        <TableCell className="text-sm">{p.site}</TableCell>
-                        <TableCell>
-                          <StatusDot status={p.status} />
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {p.lastCare}
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-sm">{p.nextTask}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {p.nextCare}
-                          </p>
-                        </TableCell>
-                        <TableCell className="text-right whitespace-nowrap">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setEditing(p)}
-                            aria-label={`Edit ${p.common}`}
-                          >
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setOpenPlant(p)}
-                            aria-label={`Open care calendar for ${p.common}`}
-                          >
-                            <CalendarDays className="size-4" /> Calendar
-                          </Button>
-                        </TableCell>
+                </CardHeader>
+              </Card>
+
+              <Card className="relative z-10 overflow-hidden shadow-card">
+                <CardContent className="overflow-x-auto p-0">
+                  <Table className="min-w-[980px]">
+                    <TableHeader>
+                      <TableRow className="bg-muted/45 hover:bg-muted/45">
+                        <TableHead className="sticky left-0 z-20 w-28 border-r bg-muted px-4">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase">
+                            ID <ChevronUp className="size-3" />
+                          </span>
+                        </TableHead>
+                        <TableHead className="min-w-48 text-[10px] font-semibold uppercase">
+                          Plant / area
+                        </TableHead>
+                        <TableHead className="text-[10px] font-semibold uppercase">
+                          Type
+                        </TableHead>
+                        <TableHead className="min-w-40 text-[10px] font-semibold uppercase">
+                          Zone
+                        </TableHead>
+                        <TableHead className="text-[10px] font-semibold uppercase">
+                          Status
+                        </TableHead>
+                        <TableHead className="text-[10px] font-semibold uppercase">
+                          Last care
+                        </TableHead>
+                        <TableHead className="min-w-40 text-[10px] font-semibold uppercase">
+                          Next task
+                        </TableHead>
+                        <TableHead className="w-24 text-right text-[10px] font-semibold uppercase">
+                          Actions
+                        </TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {rows.map((p) => (
+                        <TableRow
+                          key={p.id}
+                          className="group h-16 transition-colors hover:bg-data-violet/5"
+                        >
+                          <TableCell className="sticky left-0 z-10 border-r bg-card px-4 font-mono text-xs font-medium text-muted-foreground group-hover:bg-[color-mix(in_oklab,var(--data-violet)_5%,var(--card))]">
+                            {p.id}
+                          </TableCell>
+                          <TableCell>
+                            <p className="font-medium">{p.common}</p>
+                            <p className="text-xs italic text-muted-foreground">
+                              {p.species}
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="font-normal">
+                              {p.kind}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">{p.site}</TableCell>
+                          <TableCell>
+                            <StatusDot status={p.status} />
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {p.lastCare}
+                          </TableCell>
+                          <TableCell>
+                            <p className="text-sm font-medium">{p.nextTask}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {p.nextCare}
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setOpenPlant(p)}
+                                aria-label={`Open care calendar for ${p.common}`}
+                                title="Open care calendar"
+                              >
+                                <CalendarDays className="size-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEditing(p)}
+                                aria-label={`Edit ${p.common}`}
+                                title="Edit"
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              <Card className="relative z-0 shadow-card">
+                <CardContent className="flex items-center justify-between px-4 py-3 text-xs text-muted-foreground">
+                  <span>
+                    Showing {rows.length} of {rows.length} items
+                  </span>
+                  <span>{project.name}</span>
+                </CardContent>
+              </Card>
+            </section>
           );
         })}
         {groups.length === 0 ? (
