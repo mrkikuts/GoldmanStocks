@@ -68,11 +68,9 @@ should never need to wait on each other or resolve a merge conflict.
       - There is **no denormalised `client` column** on `projects`, `plants` or `tasks`. The A4
         mappers join through `clients` to fill the `client` field the UI expects — reuse
         `clientNameByProject()` in `src/lib/api/lookups.ts` rather than re-deriving it.
-      - **RLS is on and it denied everyone.** No policy admitted the `authenticated` role, so even
-        a correctly signed-in user read zero rows from every table. Fixed additively by
-        `supabase/migrations/0002_authenticated_access.sql` (run it in the dashboard SQL editor —
-        API keys can't execute DDL). Existing policies are untouched; `using (true)` still needs
-        tightening to per-company scoping before real data goes near it.
+      - **RLS is on.** `0002_authenticated_access.sql` deliberately grants no blanket access;
+        `0005_worker_mobile_access.sql` adds company-boss and worker-scoped policies and removes
+        any legacy broad demo policy. Apply `0005` before using either app with real accounts.
       - Query through `getAuthedClient()` in `src/lib/api/session.ts`, not `getServerClient()`
         directly — it signs in and memoises one authenticated client per request.
 - [ ] Push it. Both pull. Then split up.
@@ -99,8 +97,8 @@ should never need to wait on each other or resolve a merge conflict.
       it inside the handler, as `src/lib/api/session.ts` does. In practice you want
       `getAuthedClient()` from there rather than `getServerClient()` directly.
 - [x] **A2 — Schema live.** Tables confirmed present and typed into `src/lib/supabase/types.ts`.
-      RLS needed `supabase/migrations/0002_authenticated_access.sql` — until it ran, every
-      signed-in user read zero rows.
+      Access is now granted by the role-scoped policies in
+      `supabase/migrations/0005_worker_mobile_access.sql`.
 - [x] **A3 — Seed script.** `bun run seed` (`scripts/seed.ts`). Wipes and reloads from
       `src/lib/rootline-data.ts`: 1 company, 4 workers, 5 clients, 5 projects, 15 plants,
       12 tasks, 120 care events, 4 offers. Also creates the demo boss account and links it to

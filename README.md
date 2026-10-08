@@ -1,5 +1,22 @@
 # Routes
 
+## Applications
+
+This repository contains both the GoldmanStocks web app and the Groundcrew worker app. The
+website (including its existing `/mobile` routes) remains at the repository root; the Expo app
+is isolated under [`apps/groundcrew`](apps/groundcrew/README.md) with its own package manifest
+and lockfile.
+
+The mobile app uses the same Supabase project, GoldmanStocks entities, and worker assignments as
+the website. Apply migrations `0001`–`0005` and provision a worker's `workers.user_id` link before
+sign-in. See [Supabase setup](supabase/README.md#worker-app-setup) for details. Run it with:
+
+```sh
+cd apps/groundcrew
+npm install
+npm run start
+```
+
 TanStack Start uses **file-based routing**. Every `.tsx` file in this directory
 defines a route. Do **not** create `src/pages/`, `src/routes/_app/index.tsx`, or
 `app/layout.tsx` — those are Next.js / Remix conventions. The only root layout

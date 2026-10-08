@@ -403,7 +403,22 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      complete_worker_task: {
+        Args: {
+          p_task_id: string;
+          p_storage_path: string;
+          p_taken_at: string;
+          p_lat: number | null;
+          p_lng: number | null;
+        };
+        Returns: string;
+      };
+      set_worker_task_status: {
+        Args: { p_task_id: string; p_status: string };
+        Returns: undefined;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

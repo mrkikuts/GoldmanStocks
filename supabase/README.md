@@ -57,12 +57,34 @@ notify pgrst, 'reload schema';
 > connecting as `postgres` instead of `postgres.<project-ref>`. Never actually retested, so treat
 > it as unconfirmed rather than fact.
 
-- `0002_authenticated_access.sql` — grants the `authenticated` role access to the demo tables.
-  Required: RLS is on but no policy admitted signed-in users, so every query returned zero rows.
-  Additive (Postgres ORs permissive policies), so existing policies are untouched.
+- `0002_authenticated_access.sql` — ensures RLS stays enabled and removes the legacy blanket
+  authenticated policy. It intentionally grants no access by itself; `0005` adds scoped policies.
 - `0003_plant_coordinates.sql` — nullable `lat`/`lng` on `plants`. **Applied 19 Sep 2026** via the
   Management API. Existing plants were deliberately left `null`: that is what makes them keep
   following their site when it is moved on the map (`src/lib/geo.ts`, `plantPosition`).
+- `0004_task_date.sql` — optional one-off date for a task; `null` keeps the existing weekly schedule.
+- `0005_worker_mobile_access.sql` — removes any previously applied broad demo policy, scopes
+  website access to company bosses and mobile reads to the signed-in worker's assignments, and
+  adds worker-only task-photo upload/completion RPCs. Apply this after `0001`–`0004` before using
+  either app. It never grants the mobile client a service-role key or arbitrary table writes.
+
+## Worker app setup
+
+The Expo app lives in `apps/groundcrew` and uses `EXPO_PUBLIC_SUPABASE_URL` and
+`EXPO_PUBLIC_SUPABASE_ANON_KEY`, set to the same Supabase project values used by the website's
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Only the public anon key belongs in the Expo
+environment; never add `SUPABASE_SERVICE_ROLE_KEY` to the mobile app.
+
+Enable email OTP in Supabase Auth. For each worker, create/choose an Auth user and set that
+worker row's `user_id` to the Auth user's UUID in the Dashboard. The row must have
+`app_role = 'worker'`. A worker can then sign in with that same email and sees projects they're
+listed on as a lead/worker, plants in those projects, and only tasks assigned to their worker id.
+The web demo boss continues to use its server-side demo credentials; `bun run seed` links that
+account to demo worker `w1`. For an existing deployment, link the existing demo boss row to its
+Auth user before applying 0005 so the website keeps its company-scoped access.
+
+Run the Expo app with `cd apps/groundcrew && npm install && npm run start`; see
+[`apps/groundcrew/README.md`](../apps/groundcrew/README.md) for native and web commands.
 
 ## Demo data
 

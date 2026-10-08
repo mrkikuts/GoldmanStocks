@@ -253,7 +253,7 @@ async function seed() {
   );
 }
 
-/** The account the app auto-signs-in as (A5). Idempotent — reuses it if it already exists. */
+/** The website's demo boss account. Idempotent — reuses it if it already exists. */
 async function seedBossAccount() {
   const email = process.env["DEMO_BOSS_EMAIL"];
   const password = process.env["DEMO_BOSS_PASSWORD"];
@@ -264,7 +264,7 @@ async function seedBossAccount() {
   }
 
   console.log("\nDemo boss account…");
-  const { error } = await db.auth.admin.createUser({
+  const { data: created, error } = await db.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
@@ -274,6 +274,22 @@ async function seedBossAccount() {
     throw new Error(`boss account: ${error.message}`);
   }
   console.log(`  ✓ ${email} ${error ? "(already existed)" : "(created)"}`);
+
+  const userId = created.user?.id;
+  const { data: listed, error: listError } = userId
+    ? { data: { users: [] }, error: null }
+    : await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (listError) throw new Error(`Could not look up the demo boss account: ${listError.message}`);
+  const bossUserId =
+    userId ?? listed.users.find((user) => user.email?.toLowerCase() === email.toLowerCase())?.id;
+  if (!bossUserId) throw new Error(`Could not find the demo boss account for ${email}.`);
+
+  const { error: linkError } = await db
+    .from("workers")
+    .update({ user_id: bossUserId })
+    .eq("id", "w1")
+    .eq("app_role", "boss");
+  check("linked demo boss to worker w1", linkError);
 }
 
 await wipe();
